@@ -1,6 +1,8 @@
-# CS152_Project
+# CS152 Project
 Spring 2020
+
 Ford St. John, 862125078 
+
 Eduardo Rocha
 
 ## Phase 1: Lexical Analyzer Generation Using flex
@@ -10,8 +12,7 @@ A make file has been created to compile the code.  Assuming make is installed on
 make clean
 make
 ```
-MINI-L compiled files can then be passed for lexical analysis using:
+MINI-L compiled files can then be passed for lexical analysis using the following commands:
 ```console
-./lexer fibonacci.min
+$ ./lexer fibonacci.min
 ```
-for example
