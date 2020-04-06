@@ -36,6 +36,7 @@
 
  /* Variable declaration */
 %{
+	#include <stdio.h>
 	int currPos = 1;
 	int currLine = 1;
 %}
@@ -68,6 +69,10 @@ LETTER [a-zA-Z]
 "and"							{printf("AND\n"); currPos += yyleng;}
 "continue"						{printf("CONTINUE\n"); currPos += yyleng;}
 "endloop"						{printf("ENDLOOP\n"); currPos += yyleng;}
+"array"							{printf("ARRAY\n"); currPos += yyleng;}
+"of"							{printf("OF\n"); currPos += yyleng;}
+"true"							{printf("TRUE\n"); currPos += yyleng;}
+"false"							{printf("FALSE\n"); currPos += yyleng;}
 ";"							{printf("SEMICOLON\n"); ++currPos;}
 ":"							{printf("COLON\n"); ++currPos;}
 "("							{printf("L_PAREN\n"); ++currPos;}
@@ -75,7 +80,15 @@ LETTER [a-zA-Z]
 "-"							{printf("SUB\n"); ++currPos;}
 "+"							{printf("ADD\n"); ++currPos;}
 "<="							{printf("LTE\n"); currPos += yyleng;}
-"="							{printf("ASSIGN\n"); ++currPos;}
+"<"							{printf("LT\n"); currPos += yyleng;}
+">="							{printf("GTE\n"); currPos += yyleng;}
+">"							{printf("GT\n"); ++currPos;}
+"="							{printf("EQ\n"); ++currPos;}
+":="							{printf("ASSIGN\n"); currPos += yyleng;}
+"["							{printf("L_SQUARE_BRACKET\n"); ++currPos;}
+"]"							{printf("R_SQUARE_BRACKET\n"); ++currPos;}
+"%"							{printf("MOD\n"); ++currPos;}
+","							{printf("COMMA\n"); ++currPos;}
 {LETTER}(({LETTER}|[_]|{DIGIT})*({DIGIT}|{LETTER})*)*	{printf("IDENT %s\n", yytext); currPos += yyleng;} /* Still working on this */
 {DIGIT}+						{printf("NUMBER %s\n", yytext); currPos += yyleng;}
 [ \t]+							{/* Ignore spaces and tabs on current line */ currPos += yyleng;}
@@ -95,6 +108,13 @@ int main(int argc, char* argv[]) {
 		yyin = stdin;
 	}
 	yylex();
-
+	// Remove the \n at the end of the file that prints with the last token
+	int ch = getc(yyin);
+	while (ch != EOF) {
+		ch = getc(yyin);
+	}
+	if (feof(yyin)) {
+		ch = '\0';
+	}	
 	return 0;
 }
