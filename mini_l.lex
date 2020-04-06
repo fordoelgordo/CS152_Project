@@ -36,6 +36,7 @@
 
  /* Variable declaration */
 %{
+	#include <stdio.h>
 	int currPos = 1;
 	int currLine = 1;
 %}
@@ -47,39 +48,51 @@ LETTER [a-zA-Z]
 %%
 
  /* Rules */
-"function"					{printf("FUNCTION\n"); currPos += yyleng;}
-"beginparams"					{printf("BEGIN_PARAMS\n"); currPos += yyleng;}
-"endparams"					{printf("END_PARAMS\n"); currPos += yyleng;}
-"beginbody"					{printf("BEGIN_BODY\n"); currPos += yyleng;}
-"endbody"					{printf("END_BODY\n"); currPos += yyleng;}
-"beginlocals"					{printf("BEGIN_LOCALS\n"); currPos += yyleng;}
-"endlocals"					{printf("END_LOCALS\n"); currPos += yyleng;}
-"integer"					{printf("INTEGER\n"); currPos += yyleng;}
-"if"						{printf("IF\n"); currPos += yyleng;}
-"then"						{printf("THEN\n"); currPos += yyleng;}
-"else"						{printf("ELSE\n"); currPos += yyleng;}
-"endif"						{printf("ENDIF\n"); currPos += yyleng;}
-"return"					{printf("RETURN\n"); currPos += yyleng;}
-"read"						{printf("READ\n"); currPos += yyleng;}
-"write"						{printf("WRITE\n"); currPos += yyleng;}
-"do"						{printf("DO\n"); currPos += yyleng;}
-"beginloop"					{printf("BEGINLOOP\n"); currPos += yyleng;}
-"while"						{printf("WHILE\n"); currPos += yyleng;}
-"and"						{printf("AND\n"); currPos += yyleng;}
-"continue"					{printf("CONTINUE\n"); currPos += yyleng;}
-"endloop"					{printf("ENDLOOP\n"); currPos += yyleng;}
-";"						{printf("SEMICOLON\n"); ++currPos;}
-":"						{printf("COLON\n"); ++currPos;}
-"("						{printf("L_PAREN\n"); ++currPos;}
-")"						{printf("R_PAREN\n"); ++currPos;}
-"-"						{printf("SUB\n"); ++currPos;}
-"+"						{printf("ADD\n"); ++currPos;}
-"<="						{printf("LTE\n"); currPos += yyleng;}
-"="						{printf("ASSIGN\n"); ++currPos;}
-{LETTER}(LETTER|[_]|DIGIT)*(DIGIT|LETTER)*	{printf("IDENT %s\n", yytext); currPos += yyleng;} /* Still working on this */
-{DIGIT}+					{printf("NUMBER %s\n", yytext); currPos += yyleng;}
-[ \t]+						{/* Ignore spaces and tabs on current line */ currPos += yyleng;}
-"\n"						{++currLine; currPos = 1;}
+"function"						{printf("FUNCTION\n"); currPos += yyleng;}
+"beginparams"						{printf("BEGIN_PARAMS\n"); currPos += yyleng;}
+"endparams"						{printf("END_PARAMS\n"); currPos += yyleng;}
+"beginbody"						{printf("BEGIN_BODY\n"); currPos += yyleng;}
+"endbody"						{printf("END_BODY\n"); currPos += yyleng;}
+"beginlocals"						{printf("BEGIN_LOCALS\n"); currPos += yyleng;}
+"endlocals"						{printf("END_LOCALS\n"); currPos += yyleng;}
+"integer"						{printf("INTEGER\n"); currPos += yyleng;}
+"if"							{printf("IF\n"); currPos += yyleng;}
+"then"							{printf("THEN\n"); currPos += yyleng;}
+"else"							{printf("ELSE\n"); currPos += yyleng;}
+"endif"							{printf("ENDIF\n"); currPos += yyleng;}
+"return"						{printf("RETURN\n"); currPos += yyleng;}
+"read"							{printf("READ\n"); currPos += yyleng;}
+"write"							{printf("WRITE\n"); currPos += yyleng;}
+"do"							{printf("DO\n"); currPos += yyleng;}
+"beginloop"						{printf("BEGINLOOP\n"); currPos += yyleng;}
+"while"							{printf("WHILE\n"); currPos += yyleng;}
+"and"							{printf("AND\n"); currPos += yyleng;}
+"continue"						{printf("CONTINUE\n"); currPos += yyleng;}
+"endloop"						{printf("ENDLOOP\n"); currPos += yyleng;}
+"array"							{printf("ARRAY\n"); currPos += yyleng;}
+"of"							{printf("OF\n"); currPos += yyleng;}
+"true"							{printf("TRUE\n"); currPos += yyleng;}
+"false"							{printf("FALSE\n"); currPos += yyleng;}
+";"							{printf("SEMICOLON\n"); ++currPos;}
+":"							{printf("COLON\n"); ++currPos;}
+"("							{printf("L_PAREN\n"); ++currPos;}
+")"							{printf("R_PAREN\n"); ++currPos;}
+"-"							{printf("SUB\n"); ++currPos;}
+"+"							{printf("ADD\n"); ++currPos;}
+"<="							{printf("LTE\n"); currPos += yyleng;}
+"<"							{printf("LT\n"); currPos += yyleng;}
+">="							{printf("GTE\n"); currPos += yyleng;}
+">"							{printf("GT\n"); ++currPos;}
+"="							{printf("EQ\n"); ++currPos;}
+":="							{printf("ASSIGN\n"); currPos += yyleng;}
+"["							{printf("L_SQUARE_BRACKET\n"); ++currPos;}
+"]"							{printf("R_SQUARE_BRACKET\n"); ++currPos;}
+"%"							{printf("MOD\n"); ++currPos;}
+","							{printf("COMMA\n"); ++currPos;}
+{LETTER}(({LETTER}|[_]|{DIGIT})*({DIGIT}|{LETTER})*)*	{printf("IDENT %s\n", yytext); currPos += yyleng;} /* Still working on this */
+{DIGIT}+						{printf("NUMBER %s\n", yytext); currPos += yyleng;}
+[ \t]+							{/* Ignore spaces and tabs on current line */ currPos += yyleng;}
+"\n"							{++currLine; currPos = 1;}
 
 %%
 
@@ -95,6 +108,13 @@ int main(int argc, char* argv[]) {
 		yyin = stdin;
 	}
 	yylex();
-
+	// Remove the \n at the end of the file that prints with the last token
+	int ch = getc(yyin);
+	while (ch != EOF) {
+		ch = getc(yyin);
+	}
+	if (feof(yyin)) {
+		ch = '\0';
+	}	
 	return 0;
 }
