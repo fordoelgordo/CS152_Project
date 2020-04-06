@@ -36,6 +36,7 @@
 
  /* Variable declaration */
 %{
+	#include <stdio.h>
 	int currPos = 1;
 	int currLine = 1;
 %}
@@ -82,8 +83,8 @@ LETTER [a-zA-Z]
 "<"							{printf("LT\n"); currPos += yyleng;}
 ">="							{printf("GTE\n"); currPos += yyleng;}
 ">"							{printf("GT\n"); ++currPos;}
-"="							{printf("ASSIGN\n"); ++currPos;}
-":="							{printf("EQ\n"); currPos += yyleng;}
+"="							{printf("EQ\n"); ++currPos;}
+":="							{printf("ASSIGN\n"); currPos += yyleng;}
 "["							{printf("L_SQUARE_BRACKET\n"); ++currPos;}
 "]"							{printf("R_SQUARE_BRACKET\n"); ++currPos;}
 "%"							{printf("MOD\n"); ++currPos;}
@@ -107,6 +108,13 @@ int main(int argc, char* argv[]) {
 		yyin = stdin;
 	}
 	yylex();
-
+	// Remove the \n at the end of the file that prints with the last token
+	int ch = getc(yyin);
+	while (ch != EOF) {
+		ch = getc(yyin);
+	}
+	if (feof(yyin)) {
+		ch = '\0';
+	}	
 	return 0;
 }
