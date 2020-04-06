@@ -16,4 +16,3 @@ MINI-L compiled files can then be passed for lexical analysis using the followin
 ```console
 $ ./lexer fibonacci.min
 ```
->>>>>>> 26a7f092684d53d3d9035e844c172a10949dcced
