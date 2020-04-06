@@ -67,6 +67,7 @@ LETTER [a-zA-Z]
 "beginloop"						{printf("BEGINLOOP\n"); currPos += yyleng;}
 "while"							{printf("WHILE\n"); currPos += yyleng;}
 "and"							{printf("AND\n"); currPos += yyleng;}
+"or"							{printf("OR\n"); currPos += yyleng;}
 "continue"						{printf("CONTINUE\n"); currPos += yyleng;}
 "endloop"						{printf("ENDLOOP\n"); currPos += yyleng;}
 "array"							{printf("ARRAY\n"); currPos += yyleng;}
@@ -79,20 +80,24 @@ LETTER [a-zA-Z]
 ")"							{printf("R_PAREN\n"); ++currPos;}
 "-"							{printf("SUB\n"); ++currPos;}
 "+"							{printf("ADD\n"); ++currPos;}
+"*"							{printf("MULT\n"); ++currPos;}
 "<="							{printf("LTE\n"); currPos += yyleng;}
 "<"							{printf("LT\n"); currPos += yyleng;}
 ">="							{printf("GTE\n"); currPos += yyleng;}
 ">"							{printf("GT\n"); ++currPos;}
 "="							{printf("EQ\n"); ++currPos;}
 ":="							{printf("ASSIGN\n"); currPos += yyleng;}
+"=="							{printf("EQ\n"); currPos += yyleng;}
 "["							{printf("L_SQUARE_BRACKET\n"); ++currPos;}
 "]"							{printf("R_SQUARE_BRACKET\n"); ++currPos;}
 "%"							{printf("MOD\n"); ++currPos;}
 ","							{printf("COMMA\n"); ++currPos;}
+##[^\n]*						{/* Ignore comments and tabs on the current line */ currPos += yyleng;}
 {LETTER}(({LETTER}|[_]|{DIGIT})*({DIGIT}|{LETTER})*)*	{printf("IDENT %s\n", yytext); currPos += yyleng;} /* Still working on this */
 {DIGIT}+						{printf("NUMBER %s\n", yytext); currPos += yyleng;}
 [ \t]+							{/* Ignore spaces and tabs on current line */ currPos += yyleng;}
 "\n"							{++currLine; currPos = 1;}
+"\r"							{++currLine; currPos = 1;}
 
 %%
 
@@ -109,6 +114,7 @@ int main(int argc, char* argv[]) {
 	}
 	yylex();
 	// Remove the \n at the end of the file that prints with the last token
+	/* This code doesn't remove the newline character yet, still working on it */
 	int ch = getc(yyin);
 	while (ch != EOF) {
 		ch = getc(yyin);
