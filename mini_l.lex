@@ -81,6 +81,7 @@ LETTER [a-zA-Z]
 "-"							{printf("SUB\n"); ++currPos;}
 "+"							{printf("ADD\n"); ++currPos;}
 "*"							{printf("MULT\n"); ++currPos;}
+"/"							{printf("DIV\n"); ++currPos;}
 "<="							{printf("LTE\n"); currPos += yyleng;}
 "<"							{printf("LT\n"); currPos += yyleng;}
 ">="							{printf("GTE\n"); currPos += yyleng;}
