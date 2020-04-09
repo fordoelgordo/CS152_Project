@@ -1,1 +1,9 @@
-function _fib_n
+## Temporary commenting of Eduardo's test
+##function _fib_n
+##
+
+  integer f12__ss23_dis_____fib ## This worked as expected
+  ## this failed as expected: integer 12f__ss23_dis_____fib
+  ## this failed as expected: integer _f12__ss32
+  integer f12__ss23_dis_____f22 ## This worked as expcted
+  ## this failed as expected: integer f12_
