@@ -44,6 +44,9 @@
  /* Definitions */
 DIGIT [0-9]
 LETTER [a-zA-Z]
+IDENTIFIER ({LETTER}({LETTER}|{DIGIT}|"_")*({LETTER}|{DIGIT}))|{LETTER}
+ERROR_IDENTIFIER_DIGIT_UNDERSCORE_START ({DIGIT}|"_")+{IDENTIFIER}
+ERROR_IDENTIFIER_UNDERSCORE_END {IDENTIFIER}"_"+
 
 %%
 
@@ -93,12 +96,19 @@ LETTER [a-zA-Z]
 "]"							{printf("R_SQUARE_BRACKET\n"); ++currPos;}
 "%"							{printf("MOD\n"); ++currPos;}
 ","							{printf("COMMA\n"); ++currPos;}
-##[^\n]*						{/* Ignore comments and tabs on the current line */ currPos += yyleng;}
-{LETTER}(({LETTER}|[_]|{DIGIT})*({DIGIT}|{LETTER})*)*	{printf("IDENT %s\n", yytext); currPos += yyleng;} /* Still working on this */
+
+##[^\n]*						{/* Ignore comments and tabs on the current line */ currPos += yyleng;} 
+{IDENTIFIER}				{ printf("IDENT %s\n", yytext); currPos += yyleng; }
 {DIGIT}+						{printf("NUMBER %s\n", yytext); currPos += yyleng;}
 [ \t]+							{/* Ignore spaces and tabs on current line */ currPos += yyleng;}
 "\n"							{++currLine; currPos = 1;}
 "\r"							{++currLine; currPos = 1;}
+
+{ERROR_IDENTIFIER_DIGIT_UNDERSCORE_START}    { printf("Error at line %d, column %d: identifier \"%s\" must begin with a letter\n", currLine, currPos, yytext); exit(0); }
+
+{ERROR_IDENTIFIER_UNDERSCORE_END} { printf("Error at line %d, column %d: identifier \"%s\" cannot end with an underscore\n", currLine, currPos, yytext); exit(0); }
+
+.              {printf("Error at line %d, column %d: unrecognized symbol \"%s\"\n", currLine, currPos, yytext); exit(0);}
 
 %%
 
