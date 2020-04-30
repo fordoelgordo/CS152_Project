@@ -66,7 +66,7 @@ ERROR_IDENTIFIER_UNDERSCORE_END {IDENTIFIER}"_"+
 ","							{++currPos; return COMMA;}
 ##[^\n]*						{/* Ignore comments and tabs on the current line */ currPos += yyleng;} 
 {IDENTIFIER}						{currPos += yyleng; yylval.cval = yytext; return IDENT;}
-{DIGIT}+						{currPos += yyleng; yyval.dval = atof(yytext); return NUMBER;}
+{DIGIT}+						{currPos += yyleng; yyval.dval = atoi(yytext); return NUMBER;}
 [ \t]+							{/* Ignore spaces and tabs on current line */ currPos += yyleng;}
 "\n"							{++currLine; currPos = 1; return END;}
 "\r"							{++currLine; currPos = 1; return END;}
