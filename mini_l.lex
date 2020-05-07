@@ -1,42 +1,10 @@
 /*
- * Lexical Analyzer for the MINI-L language
- *
- * Valid tokens:
- *   Identifiers: Begin with a letter, followed by either letters, digits or underscores. Cannot end with an underscore
- *   Comments: begin ## and continue to the end of the current line
- *   Reserved words:
- *     function
- *     beginparams
- *     endparams
- *     beginbody
- *     endbody
- *     beginlocals
- *     endlocals
- *     if
- *     then
- *     else
- *     endif
- *     return
- *     read
- *     write
- *     integer
- *     do
- *     beginloop
- *     while
- *     and
- *     continue
- *     endloop
- *  Numbers: Appear to just be integer values, no decimals or signed values
- * 
- *
- *  Usage: (1) flex mini_l.lex
- *         (2) gcc -o lexer lex.yy.c -lfl
- *         (3) ./lexer <input file>
+ * Create flex scanner specification file for MINI-L language
 */
 
  /* Variable declaration */
 %{
-	#include <stdio.h>
+	#include "y.tab.h"
 	int currPos = 1;
 	int currLine = 1;
 %}
@@ -51,83 +19,60 @@ ERROR_IDENTIFIER_UNDERSCORE_END {IDENTIFIER}"_"+
 %%
 
  /* Rules */
-"function"						{printf("FUNCTION\n"); currPos += yyleng;}
-"beginparams"						{printf("BEGIN_PARAMS\n"); currPos += yyleng;}
-"endparams"						{printf("END_PARAMS\n"); currPos += yyleng;}
-"beginbody"						{printf("BEGIN_BODY\n"); currPos += yyleng;}
-"endbody"						{printf("END_BODY\n"); currPos += yyleng;}
-"beginlocals"						{printf("BEGIN_LOCALS\n"); currPos += yyleng;}
-"endlocals"						{printf("END_LOCALS\n"); currPos += yyleng;}
-"integer"						{printf("INTEGER\n"); currPos += yyleng;}
-"if"							{printf("IF\n"); currPos += yyleng;}
-"then"							{printf("THEN\n"); currPos += yyleng;}
-"else"							{printf("ELSE\n"); currPos += yyleng;}
-"endif"							{printf("ENDIF\n"); currPos += yyleng;}
-"return"						{printf("RETURN\n"); currPos += yyleng;}
-"read"							{printf("READ\n"); currPos += yyleng;}
-"write"							{printf("WRITE\n"); currPos += yyleng;}
-"do"							{printf("DO\n"); currPos += yyleng;}
-"beginloop"						{printf("BEGINLOOP\n"); currPos += yyleng;}
-"while"							{printf("WHILE\n"); currPos += yyleng;}
-"and"							{printf("AND\n"); currPos += yyleng;}
-"or"							{printf("OR\n"); currPos += yyleng;}
-"continue"						{printf("CONTINUE\n"); currPos += yyleng;}
-"endloop"						{printf("ENDLOOP\n"); currPos += yyleng;}
-"array"							{printf("ARRAY\n"); currPos += yyleng;}
-"of"							{printf("OF\n"); currPos += yyleng;}
-"true"							{printf("TRUE\n"); currPos += yyleng;}
-"false"							{printf("FALSE\n"); currPos += yyleng;}
-";"							{printf("SEMICOLON\n"); ++currPos;}
-":"							{printf("COLON\n"); ++currPos;}
-"("							{printf("L_PAREN\n"); ++currPos;}
-")"							{printf("R_PAREN\n"); ++currPos;}
-"-"							{printf("SUB\n"); ++currPos;}
-"+"							{printf("ADD\n"); ++currPos;}
-"*"							{printf("MULT\n"); ++currPos;}
-"/"							{printf("DIV\n"); ++currPos;}
-"<="							{printf("LTE\n"); currPos += yyleng;}
-"<"							{printf("LT\n"); currPos += yyleng;}
-">="							{printf("GTE\n"); currPos += yyleng;}
-">"							{printf("GT\n"); ++currPos;}
-"="							{printf("EQ\n"); ++currPos;}
-":="							{printf("ASSIGN\n"); currPos += yyleng;}
-"=="							{printf("EQ\n"); currPos += yyleng;}
-"["							{printf("L_SQUARE_BRACKET\n"); ++currPos;}
-"]"							{printf("R_SQUARE_BRACKET\n"); ++currPos;}
-"%"							{printf("MOD\n"); ++currPos;}
-","							{printf("COMMA\n"); ++currPos;}
+"function"						{currPos += yyleng; return FUNCTION;}
+"beginparams"						{currPos += yyleng; return BEGINPARAMS;}
+"endparams"						{currPos += yyleng; return ENDPARAMS;}
+"beginbody"						{currPos += yyleng; return BEGINBODY;}
+"endbody"						{currPos += yyleng; return ENDBODY;}
+"beginlocals"						{currPos += yyleng; return BEGINLOCALS;}
+"endlocals"						{currPos += yyleng; return ENDLOCALS;}
+"integer"						{currPos += yyleng; return INTEGER;}
+"if"							{currPos += yyleng; return IF;}
+"then"							{currPos += yyleng; return THEN;}
+"else"							{currPos += yyleng; return ELSE;}
+"endif"							{currPos += yyleng; return ENDIF;}
+"return"						{currPos += yyleng; return RETURN;}
+"read"							{currPos += yyleng; return READ;}
+"write"							{currPos += yyleng; return WRITE;}
+"do"							{currPos += yyleng; return DO;}
+"beginloop"						{currPos += yyleng; return BEGINLOOP;}
+"while"							{currPos += yyleng; return WHILE;}
+"and"							{currPos += yyleng; return AND;}
+"or"							{currPos += yyleng; return OR;}
+"continue"						{currPos += yyleng; return CONTINUE;}
+"endloop"						{currPos += yyleng; return ENDLOOP;}
+"array"							{currPos += yyleng; return ARRAY;}
+"of"							{currPos += yyleng; return OF;}
+"true"							{currPos += yyleng; return TRUE;}
+"false"							{currPos += yyleng; return FALSE;}
+"for"							{currPos += yyleng; return FOR;}
+";"							{++currPos; return SEMICOLON;}
+":"							{++currPos; return COLON;}
+"("							{++currPos; return L_PAREN;}
+")"							{++currPos; return R_PAREN;}
+"-"							{++currPos; return SUB;}
+"+"							{++currPos; return ADD;}
+"*"							{++currPos; return MULT;}
+"/"							{++currPos; return DIV;}
+"<="							{currPos += yyleng; return LTE;}
+"<"							{currPos += yyleng; return LT;}
+">="							{currPos += yyleng; return GTE;}
+">"							{++currPos; return GT;}
+"="							{++currPos; return EQ;}
+":="							{currPos += yyleng; return ASSIGN;}
+"=="							{currPos += yyleng; return EQ;}
+"["							{++currPos; return L_SQUARE_BRACKET;}
+"]"							{++currPos; return R_SQUARE_BRACKET;}
+"%"							{++currPos; return MOD;}
+","							{++currPos; return COMMA;}
 ##[^\n]*						{/* Ignore comments and tabs on the current line */ currPos += yyleng;} 
-{IDENTIFIER}						{printf("IDENT %s\n", yytext); currPos += yyleng; }
-{DIGIT}+						{printf("NUMBER %s\n", yytext); currPos += yyleng;}
+{IDENTIFIER}						{currPos += yyleng; yylval.cval = yytext; return IDENT;}
+{DIGIT}+						{currPos += yyleng; yyval.dval = atoi(yytext); return NUMBER;}
 [ \t]+							{/* Ignore spaces and tabs on current line */ currPos += yyleng;}
-"\n"							{++currLine; currPos = 1;}
-"\r"							{++currLine; currPos = 1;}
+"\n"							{++currLine; currPos = 1; return END;}
+"\r"							{++currLine; currPos = 1; return END;}
 {ERROR_IDENTIFIER_DIGIT_UNDERSCORE_START}    		{printf("Error at line %d, column %d: identifier \"%s\" must begin with a letter\n", currLine, currPos, yytext); exit(0); }
 {ERROR_IDENTIFIER_UNDERSCORE_END} 			{printf("Error at line %d, column %d: identifier \"%s\" cannot end with an underscore\n", currLine, currPos, yytext); exit(0); }
 .              						{printf("Error at line %d, column %d: unrecognized symbol \"%s\"\n", currLine, currPos, yytext); exit(0);}
 
 %%
-
- /* User Code */
-int main(int argc, char* argv[]) {
-	if (argc > 1) {
-		yyin = fopen(argv[1], "r");
-		if (yyin == NULL) {
-			yyin = stdin;
-		}
-	}
-	else {
-		yyin = stdin;
-	}
-	yylex();
-	// Remove the \n at the end of the file that prints with the last token
-	/* This code doesn't remove the newline character yet, still working on it */
-	int ch = getc(yyin);
-	while (ch != EOF) {
-		ch = getc(yyin);
-	}
-	if (feof(yyin)) {
-		ch = '\0';
-	}	
-	return 0;
-}
