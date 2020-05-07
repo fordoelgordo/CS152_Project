@@ -45,6 +45,7 @@ ERROR_IDENTIFIER_UNDERSCORE_END {IDENTIFIER}"_"+
 "of"							{currPos += yyleng; return OF;}
 "true"							{currPos += yyleng; return TRUE;}
 "false"							{currPos += yyleng; return FALSE;}
+"for"							{currPos += yyleng; return FOR;}
 ";"							{++currPos; return SEMICOLON;}
 ":"							{++currPos; return COLON;}
 "("							{++currPos; return L_PAREN;}
