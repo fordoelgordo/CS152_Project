@@ -22,13 +22,19 @@
 %token SEMICOLON COLON L_PAREN R_PAREN SUB ADD MULT DIV LTE LT GTE GT EQ ASSIGN L_SQUARE_BRACKET R_SQUARE_BRACKET MOD COMMA FOR
 %token <ival> NUMBER
 %token <cval> IDENT
+%type <cval> identifier
 
 %%
 input:	input function
 	| /* epsilon */
 	;
-function: FUNCTION IDENT SEMICOLON {printf("function -> FUNCTION IDENT SEMILCON\n");}
+function: FUNCTION identifier SEMICOLON BEGINPARAMS declaration SEMICOLON ENDPARAMS
 	;
+identifier: IDENT {printf("identifier -> IDENT %s\n", $$);}
+	  ;
+identifiers: identifier COMMA identifiers {printf("identifiers -> identifier COMMA identifiers\n");}
+declaration: /* epsion */
+	     ;
 
 %%
 int main (int argc, char* argv[]) {
