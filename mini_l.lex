@@ -39,6 +39,7 @@ ERROR_IDENTIFIER_UNDERSCORE_END {IDENTIFIER}"_"+
 "while"							{currPos += yyleng; return WHILE;}
 "and"							{currPos += yyleng; return AND;}
 "or"							{currPos += yyleng; return OR;}
+"not"							{currPos += yyleng; return NOT;}
 "continue"						{currPos += yyleng; return CONTINUE;}
 "endloop"						{currPos += yyleng; return ENDLOOP;}
 "array"							{currPos += yyleng; return ARRAY;}
@@ -58,19 +59,19 @@ ERROR_IDENTIFIER_UNDERSCORE_END {IDENTIFIER}"_"+
 "<"							{currPos += yyleng; return LT;}
 ">="							{currPos += yyleng; return GTE;}
 ">"							{++currPos; return GT;}
-"="							{++currPos; return EQ;}
 ":="							{currPos += yyleng; return ASSIGN;}
 "=="							{currPos += yyleng; return EQ;}
+"<>"							{currPos += yyleng; return NEQ;}
 "["							{++currPos; return L_SQUARE_BRACKET;}
 "]"							{++currPos; return R_SQUARE_BRACKET;}
 "%"							{++currPos; return MOD;}
 ","							{++currPos; return COMMA;}
 ##[^\n]*						{/* Ignore comments and tabs on the current line */ currPos += yyleng;} 
 {IDENTIFIER}						{currPos += yyleng; yylval.cval = yytext; return IDENT;}
-{DIGIT}+						{currPos += yyleng; yyval.dval = atoi(yytext); return NUMBER;}
+{DIGIT}+						{currPos += yyleng; yylval.ival = atoi(yytext); return NUMBER;}
 [ \t]+							{/* Ignore spaces and tabs on current line */ currPos += yyleng;}
-"\n"							{++currLine; currPos = 1; return END;}
-"\r"							{++currLine; currPos = 1; return END;}
+"\n"							{++currLine; currPos = 1; /* Don't have a purpose in the programming language */}
+"\r"							{++currLine; currPos = 1; /* Don't have a purpose in the programming language */}
 {ERROR_IDENTIFIER_DIGIT_UNDERSCORE_START}    		{printf("Error at line %d, column %d: identifier \"%s\" must begin with a letter\n", currLine, currPos, yytext); exit(0); }
 {ERROR_IDENTIFIER_UNDERSCORE_END} 			{printf("Error at line %d, column %d: identifier \"%s\" cannot end with an underscore\n", currLine, currPos, yytext); exit(0); }
 .              						{printf("Error at line %d, column %d: unrecognized symbol \"%s\"\n", currLine, currPos, yytext); exit(0);}
