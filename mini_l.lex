@@ -39,6 +39,7 @@ ERROR_IDENTIFIER_UNDERSCORE_END {IDENTIFIER}"_"+
 "while"							{currPos += yyleng; return WHILE;}
 "and"							{currPos += yyleng; return AND;}
 "or"							{currPos += yyleng; return OR;}
+"not"							{currPos += yyleng; return NOT;}
 "continue"						{currPos += yyleng; return CONTINUE;}
 "endloop"						{currPos += yyleng; return ENDLOOP;}
 "array"							{currPos += yyleng; return ARRAY;}
@@ -60,6 +61,7 @@ ERROR_IDENTIFIER_UNDERSCORE_END {IDENTIFIER}"_"+
 ">"							{++currPos; return GT;}
 ":="							{currPos += yyleng; return ASSIGN;}
 "=="							{currPos += yyleng; return EQ;}
+"<>"							{currPos += yyleng; return NEQ;}
 "["							{++currPos; return L_SQUARE_BRACKET;}
 "]"							{++currPos; return R_SQUARE_BRACKET;}
 "%"							{++currPos; return MOD;}
