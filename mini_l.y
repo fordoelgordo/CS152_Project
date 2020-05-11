@@ -69,13 +69,13 @@ expressions: expression COMMA expressions {printf("expressions -> expression COM
              | expression {printf("expressions -> expression\n");}
 	     ;
 expression: multiplicative_expression {printf("expression -> multiplicative_expression\n");}
-            | multiplicative_expression ADD multiplicative_expression {printf("expression -> multiplicative_expression ADD multiplicative_expression\n");}
-	    | multiplicative_expression SUB multiplicative_expression {printf("expression -> multiplicative_expression SUB multiplicative_expression\n");}
+            | multiplicative_expression ADD expression {printf("expression -> multiplicative_expression ADD expression\n");}
+	    | multiplicative_expression SUB expression {printf("expression -> multiplicative_expression SUB expression\n");}
 	    ;
 multiplicative_expression: term {printf("multiplicative_expression -> term\n");}
-			   | term MULT term {printf("multiplicative_expression -> term MULT term\n");}
-			   | term DIV term {printf("multiplicative_expression -> term DIV term\n");}
-                           | term MOD term {printf("multiplicative_expression -> term MOD term \n");}
+			   | term MULT multiplicative_expression {printf("multiplicative_expression -> term MULT multiplicative_expression\n");}
+			   | term DIV multiplicative_expression {printf("multiplicative_expression -> term DIV multiplicative_expression\n");}
+                           | term MOD multiplicative_expression {printf("multiplicative_expression -> term MOD multiplicative_expression\n");}
                            ;
 relation_expression: TRUE {printf("relation_expression -> TRUE\n");}
  		     | FALSE {printf("relation_expression -> FALSE\n");}
@@ -87,7 +87,7 @@ relation_expression: TRUE {printf("relation_expression -> TRUE\n");}
 		     | NOT L_PAREN bool_expression R_PAREN {printf("relation_expression -> NOT L_PAREN bool_expression R_PAREN\n");}
 		     ;
 relation_and_expression: relation_expression {printf("relation_and_expression -> relation_expression\n");}
-			 | relation_expression AND relation_expression {printf("relation_and_expression -> relation_expression AND relation_expression\n");}
+			 | relation_expression AND relation_and_expression {printf("relation_and_expression -> relation_expression AND relation_and_expression\n");}
 			 ;
 bool_expression: relation_and_expression {printf("bool_expression -> relation_and_expression\n");}
 	    	 | relation_and_expression OR relation_and_expression {printf("bool_expression -> relation_and_expression OR relation_and_expression\n");}
