@@ -1,7 +1,7 @@
 parse: mini_l.lex mini_l.y
 	bison -v -d --file-prefix=y mini_l.y
 	flex mini_l.lex
-	gcc -o mini_l y.tab.c lex.yy.c -lfl
+	gcc -o parser y.tab.c lex.yy.c -lfl
 	#gcc -o mini_l y.tab.c lex.yy.c -ll
 
 clean:
