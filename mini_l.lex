@@ -74,6 +74,7 @@ ERROR_IDENTIFIER_UNDERSCORE_END {IDENTIFIER}"_"+
 "\r"							{++currLine; currPos = 1; /* Don't have a purpose in the programming language */}
 {ERROR_IDENTIFIER_DIGIT_UNDERSCORE_START}    		{printf("Error at line %d, column %d: identifier \"%s\" must begin with a letter\n", currLine, currPos, yytext); exit(0); }
 {ERROR_IDENTIFIER_UNDERSCORE_END} 			{printf("Error at line %d, column %d: identifier \"%s\" cannot end with an underscore\n", currLine, currPos, yytext); exit(0); }
+"="							{printf("syntax error at line %d, column %d: \":=\" expected\n", currLine, currPos); exit(0);}
 .              						{printf("Error at line %d, column %d: unrecognized symbol \"%s\"\n", currLine, currPos, yytext); exit(0);}
 
 %%
