@@ -6,6 +6,7 @@
 	#include <stdio.h>
 	#include <stdlib.h>
 	void yyerror(const char* msg);
+	void errormsg(const char* msg);
 	extern int currLine;
 	extern int currPos;
 	FILE* yyin;
@@ -16,8 +17,9 @@
 	char* cval; /* To return IDENT tokens */
 }
 
-%define parse.error verbose
-%define parse.lac full
+%error-verbose
+/*%define parse.error verbose*/
+/*%define parse.lac full*/
 %start program_start
 %token FUNCTION BEGINPARAMS ENDPARAMS BEGINBODY ENDBODY BEGINLOCALS ENDLOCALS INTEGER IF THEN ELSE ENDIF RETURN READ WRITE DO BEGINLOOP WHILE AND OR NOT CONTINUE ENDLOOP ARRAY OF TRUE FALSE
 %token SEMICOLON L_PAREN R_PAREN SUB ADD MULT DIV LTE LT GTE GT EQ NEQ ASSIGN L_SQUARE_BRACKET R_SQUARE_BRACKET MOD FOR
@@ -41,9 +43,11 @@ identifiers: identifier COMMA identifiers {printf("identifiers -> identifier COM
 	     ;
 declarations: /* epsilon */ {printf("declarations -> epsilon\n");}
 	      | declaration SEMICOLON declarations {printf("declarations -> declaration SEMICOLON declarations\n");}
+	      | declaration error {yyerror("syntax error: missing \";\"");}
 	      ;
 declaration: identifiers COLON INTEGER {printf("declaration -> identifiers COLON INTEGER\n");}
-             | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {printf("declaration -> identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER\n");}
+             | identifiers error INTEGER {yyerror("syntax error: expecting \":\"");}
+	     | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {printf("declaration -> identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER\n");}
              | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {printf("declaration -> identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER\n");}
 	     ;
 comp: EQ {printf("comp -> EQ\n");}
@@ -55,6 +59,7 @@ comp: EQ {printf("comp -> EQ\n");}
       ;
 var: identifier {printf("var -> indentifier\n");}
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET {printf("var -> identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET\n");}
+     | identifier L_SQUARE_BRACKET expression error {yyerror("syntax error: expecting \"]\"");}
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET {printf("var -> identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET\n");}
      ;
 vars: var {printf("vars -> var\n");}
@@ -69,7 +74,8 @@ term: SUB var {printf("term -> SUB var\n");}
       | identifier L_PAREN expressions R_PAREN {printf("term -> indentifier L_PAREN expression R_PAREN\n");}
       ;
 expressions: expression COMMA expressions {printf("expressions -> expression COMMA expressions\n");}
-             | expression {printf("expressions -> expression\n");}
+	     | expression error expressions {yyerror("syntax error: expecting \",\"");}
+	     | expression {printf("expressions -> expression\n");}
 	     ;
 expression: multiplicative_expression {printf("expression -> multiplicative_expression\n");}
             | multiplicative_expression ADD expression {printf("expression -> multiplicative_expression ADD expression\n");}
@@ -96,16 +102,24 @@ bool_expression: relation_and_expression {printf("bool_expression -> relation_an
 	    	 | relation_and_expression OR relation_and_expression {printf("bool_expression -> relation_and_expression OR relation_and_expression\n");}
 		 ;
 statements: statement SEMICOLON statements {printf("statements -> statement SEMICOLON statements\n");}
+	    | statement error statements {yyerror("syntax error: missing \";\"");}
 	    | /* epsilon */ {printf("statements -> epsilon\n");}
 	    ;
 statement: var ASSIGN expression {printf("statement -> var ASSIGN expression\n");}
-           | IF bool_expression THEN statements ENDIF {printf("statement -> IF bool_expression THEN statements ENDIF\n");}
+           | var error expression {yyerror("syntax error: missing \":=\"");}
+	   | IF bool_expression THEN statements ENDIF {printf("statement -> IF bool_expression THEN statements ENDIF\n");}
 	   | IF bool_expression THEN statements ELSE statements ENDIF {printf("statement -> IF bool_expression THEN statements ELSE statements ENDIF\n");}
+	   | IF bool_expression error statements ENDIF {yyerror("syntax error: missing \"then\"");}
 	   | WHILE bool_expression BEGINLOOP statements ENDLOOP {printf("statement -> WHILE bool_expression BEGINLOOP statements ENDLOOP\n");}
 	   | DO BEGINLOOP statements ENDLOOP WHILE bool_expression {printf("statement -> DO BEGINLOOP statements ENDLOOP WHILE bool_expression\n");}
 	   | FOR var ASSIGN NUMBER SEMICOLON bool_expression SEMICOLON var ASSIGN expression BEGINLOOP statements ENDLOOP {printf("FOR var ASSIGN NUMBER SEMICOLON bool_expression SEMICOLON var ASSIGN expression BEGINLOOP statements ENDLOOP\n");}
-           | READ vars {printf("statement -> READ vars\n");}
+           | FOR var ASSIGN NUMBER error bool_expression SEMICOLON var ASSIGN expression BEGINLOOP statements ENDLOOP {yyerror("syntax error: missing \";\"");}
+	   | FOR var ASSIGN NUMBER SEMICOLON bool_expression error var ASSIGN expression BEGINLOOP statements ENDLOOP {yyerror("syntax error: missing \";\"");}
+	   | FOR var error NUMBER SEMICOLON bool_expression SEMICOLON var ASSIGN expression BEGINLOOP statements ENDLOOP {yyerror("syntax error: expected \":=\"");}
+	   | FOR var ASSIGN NUMBER SEMICOLON bool_expression SEMICOLON var error expression BEGINLOOP statements ENDLOOP {yyerror("syntax error: expected \":=\"");}
+	   | READ vars {printf("statement -> READ vars\n");}
 	   | WRITE vars {printf("statement -> WRITE vars\n");}
+           | error vars {yyerror("syntax error: expected \"read\" or \"write\"");}
 	   | CONTINUE {printf("statement -> CONTINUE\n");}
 	   | RETURN expression {printf("statement -> RETURN expression\n");}
 	   ;
@@ -125,3 +139,4 @@ int main (int argc, char* argv[]) {
 void yyerror(const char* msg) {
 	printf("** Line %d, position %d: %s\n", currLine, currPos, msg);
 }
+
