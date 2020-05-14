@@ -16,7 +16,6 @@
 	char* cval; /* To return IDENT tokens */
 }
 
-/*%error-verbose*/
 %define parse.error verbose
 %define parse.lac full
 %start program_start
