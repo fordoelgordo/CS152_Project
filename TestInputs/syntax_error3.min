@@ -1,0 +1,13 @@
+function main;
+beginparams
+endparams
+
+beginlocals
+endlocals
+
+beginbody ## main program
+
+	if k % 2 == 0
+		continue;
+	endif;
+endbody
