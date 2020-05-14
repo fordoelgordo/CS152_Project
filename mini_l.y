@@ -28,7 +28,7 @@
 %type <cval> identifier
 
 %%
-program_start: functions {printf("program_start -> functions\n");}
+program_start: functions {printf("prog_start -> functions\n");}
 functions: function functions {printf("functions -> function functions\n");}
            | /* epsilon */ {printf("functions -> epsilon\n");}
            ;
