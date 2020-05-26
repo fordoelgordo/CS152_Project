@@ -18,6 +18,7 @@
 	using namespace std;
 	#include <iostream>
 	#include <fstream> /* To write the generated mil code to a file */
+	#include <cstdio> /* To write from stdout to file */
 	#include <vector>
 	#include <string>
 	/* Define other data structures for non-terminals */
@@ -30,6 +31,7 @@
 	#include <vector>
 	yy::parser::symbol_type yylex();
 	/* Define symbol table, global variables, list of keywords or functions that are needed here */
+	bool semantic_error = false; /* If semantic error is encountered, no intermediate code should be created and an error should print */
 }
 
 %token END 0 "end of file";
@@ -41,23 +43,36 @@
 %token COMMA ","
 %token <int> NUMBER
 %token <string> IDENT
-%type <string> identifier
-
+%left MULT DIV MOD /* Precedence = 3 */
+%left ADD SUB /* Precedence = 4 */
+%left LTE LT GTE GT EQ NEQ /* Precedence = 5 */
+%right NOT /* Precedence = 6 */
+%left AND /* Precedence = 7 */
+%left OR /* Precedence = 8 */
+%right ASSIGN /* Precedence = 9 */
+%type <string> identifier identifiers functions function
 
 %%
 
 %start program_start;
 
-program_start: functions {std::cout << "prog_start -> functions\n";}
-functions: function functions {std::cout << "functions -> function functions\n";}
-           | /* epsilon */ {std::cout << "functions -> epsilon\n";}
+program_start: functions {
+			if (!semantic_error) {
+				std::cout << $1 << std::endl;
+			}
+		}
+functions: function functions {$$ = $1 + "\n" + $2;}
+           | /* epsilon */ {$$ = "";}
            ;
-function: FUNCTION identifiers SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGINLOCALS declarations ENDLOCALS BEGINBODY statements ENDBODY {std::cout << "function -> FUNCTION identifiers SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGINLOCALS declarations ENDLOCALS BEGINBODY statements ENDBODY\n";}
+function: FUNCTION identifiers SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGINLOCALS declarations ENDLOCALS BEGINBODY statements ENDBODY {
+		$$ = "func " + $2 + "\n";
+		$$ += "endfunc";
+	}
 	;
-identifier: IDENT {std::cout << "identifier -> IDENT " << $1 << "\n";}
+identifier: IDENT {$$ = $1;}
 	  ;
 identifiers: identifier COMMA identifiers {std::cout << "identifiers -> identifier COMMA identifiers\n";}
-	     | identifier {std::cout << "identifiers -> identifier\n";}
+	     | identifier {$$ = $1;}
 	     ;
 declarations: /* epsilon */ {std::cout << "declarations -> epsilon\n";}
 	      | declaration SEMICOLON declarations {std::cout << "declarations -> declaration SEMICOLON declarations\n";}
@@ -134,24 +149,24 @@ statement: var ASSIGN expression {std::cout << "statement -> var ASSIGN expressi
 int main(int argc, char* argv[]) {
 	yy::parser p;
 	ifstream fileIn;
-	ofstream fileOut;
+	freopen("mil_code.mil", "w", stdout);
 	if (argc > 1) {
 		fileIn.open(argv[1]);
 		if (!fileIn.is_open()) {
 			std::cerr << "Error opening user file" << std::endl;
 			exit(1);
 		}
-	}
+	}	
 	p.parse();
 
 	/*
-	fileOut.open("mil_code.mil");
-	if (!fileOut.is_open()) {
+	std::cout.open("mil_code.mil");
+	if (!std::cout.is_open()) {
 		std::cerr << "Error opening mil code file" << std::endl;
 		exit(1);
 	}
-	fileOut << p.parse() << std::endl;
-	fileOut.close();
+	std::cout << p.parse() << std::endl;
+	std::cout.close();
 	*/
 	
 	return 0;
