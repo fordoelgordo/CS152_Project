@@ -29,9 +29,15 @@
 	#include "parser.tab.hh"
 	#include <map>
 	#include <vector>
+	#include <string>
 	yy::parser::symbol_type yylex();
 	/* Define symbol table, global variables, list of keywords or functions that are needed here */
 	bool semantic_error = false; /* If semantic error is encountered, no intermediate code should be created and an error should print */
+	int tempIndex = 0; /* to index temporary variables */
+	string tempVar;
+	vector<string> sym_table;
+	vector<string> sym_type;
+	bool in_sym_table(string symbol);
 }
 
 %token END 0 "end of file";
@@ -50,7 +56,7 @@
 %left AND /* Precedence = 7 */
 %left OR /* Precedence = 8 */
 %right ASSIGN /* Precedence = 9 */
-%type <string> identifier identifiers functions function
+%type <string> identifier identifiers functions function declarations declaration statements var
 
 %%
 
@@ -61,11 +67,25 @@ program_start: functions {
 				std::cout << $1 << std::endl;
 			}
 		}
-functions: function functions {$$ = $1 + "\n" + $2;}
+functions: function functions {
+		$$ = $1;
+		if ($2 != "") {
+			$$ += "\n" + $2;
+		}
+	   }
            | /* epsilon */ {$$ = "";}
            ;
 function: FUNCTION identifiers SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGINLOCALS declarations ENDLOCALS BEGINBODY statements ENDBODY {
 		$$ = "func " + $2 + "\n";
+		if ($5 != "") {
+			$$ += $5 + "\n";
+		}
+		if ($8 != "") {
+			$$ += $8 + "\n";
+		}
+		if ($11 != "") {
+			$$ += $11 + "\n";
+		}
 		$$ += "endfunc";
 	}
 	;
@@ -74,12 +94,27 @@ identifier: IDENT {$$ = $1;}
 identifiers: identifier COMMA identifiers {std::cout << "identifiers -> identifier COMMA identifiers\n";}
 	     | identifier {$$ = $1;}
 	     ;
-declarations: /* epsilon */ {std::cout << "declarations -> epsilon\n";}
-	      | declaration SEMICOLON declarations {std::cout << "declarations -> declaration SEMICOLON declarations\n";}
+declarations: /* epsilon */ {$$ = "";}
+	      | declaration SEMICOLON declarations {$$ = $1 + "\n" + $3;}
 	      ;
-declaration: identifiers COLON INTEGER {std::cout << "declaration -> identifiers COLON INTEGER\n";}
-	     | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {std::cout << "declaration -> identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER\n";}
-             | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {std::cout << "declaration -> identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER\n";}
+declaration: identifiers COLON INTEGER {
+		/* Variable declaration of type integer */
+		sym_table.push_back($1);
+		sym_type.push_back("integer");
+		$$ = ". " + $1;
+	     }
+	     | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {
+		/* Variable declaration of a 1-D array */
+		sym_table.push_back($1);
+		sym_type.push_back("array_1_d");
+		$$ = ".[] " + $1 + "," + to_string($5);
+	     }
+             | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {
+		/* Variable declaration of a 2-D array */
+		sym_table.push_back($1);
+		sym_type.push_back("array_2_d");
+		
+	     }
 	     ;
 comp: EQ {std::cout << "comp -> EQ\n";}
       | NEQ {std::cout << "comp -> NEQ\n";}
@@ -88,14 +123,22 @@ comp: EQ {std::cout << "comp -> EQ\n";}
       | LTE {std::cout << "comp -> LTE\n";}
       | GTE {std::cout << "comp -> LTE\n";}
       ;
-var: identifier {std::cout << "var -> indentifier\n";}
+var: identifier {
+	if (!in_sym_table($1)) {
+		std::cerr << "Semantic error: " << $1 << " not declared" << std::endl;
+		semantic_error = true;	
+	}
+	$$ = $1;
+     }
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET {std::cout << "var -> identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET\n";}
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET {std::cout << "var -> identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET\n";}
      ;
 vars: var {std::cout << "vars -> var\n";}
       | var COMMA vars {std::cout << "vars -> var COMMA vars\n";}
       ;
-term: SUB var {std::cout << "term -> SUB var\n";}
+term: SUB var {
+		
+      }
       | SUB NUMBER {std::cout << "term -> SUB NUMBER\n";}
       | SUB L_PAREN expression R_PAREN {std::cout << "term -> SUB L_PAREN expression R_PAREN\n";}
       | var {std::cout << "term -> var\n";}
@@ -173,4 +216,12 @@ int main(int argc, char* argv[]) {
 }
 void yy::parser::error(const yy::location& l, const std::string& m) {
 	std::cerr << l << ": " << m << std::endl;
+}
+bool in_sym_table(string symbol) {
+	for (int i = 0; i < sym_table.size(); ++i) {
+		if (sym_table.at(i) == symbol) {
+			return true;
+		}
+	}
+	return false;	
 }
