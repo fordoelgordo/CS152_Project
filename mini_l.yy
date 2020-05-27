@@ -30,14 +30,31 @@
 	#include <map>
 	#include <vector>
 	#include <string>
+	#include <stack>
+	#include <queue>
 	yy::parser::symbol_type yylex();
 	/* Define symbol table, global variables, list of keywords or functions that are needed here */
 	bool semantic_error = false; /* If semantic error is encountered, no intermediate code should be created and an error should print */
 	int tempIndex = 0; /* to index temporary variables */
-	string tempVar;
+	string tempVar; /* To name temporary variables */
+	int tempLabIndex = 0; /* to index labels */
+	string tempLabel; /* To name temporary labels */
+	string newTemp(); /* Function to create a new temporary variable and return it */
+	string newLabel(); /* Function to create a new label and return it */
+	string temp; /* Return newTemp() to this global variable */
+	string label; /* Return newLabel() to this global variable */
 	vector<string> sym_table;
-	vector<string> sym_type;
-	bool in_sym_table(string symbol);
+	map<string, int> sym_type; /* 0 = integer, 1 = 1-D array, 2 = 2-D array, 3 = function */
+	vector<string> label_table;
+	vector<string> ident_list;
+	vector<string> var_list;
+	bool in_sym_table(string symbol); /* Check if the passed symbol is in the symbol table */
+	int find_symbol(string symbol);  /* Return the location of the passed symbol in the symbol table */
+	bool in_label_table(string label);
+	struct exp_struct {
+		int place; /* Location in the symbol table of the name of the variable that holds the expression's value */
+		string code; /* The code that generates the expression */
+	}
 }
 
 %token END 0 "end of file";
@@ -56,16 +73,22 @@
 %left AND /* Precedence = 7 */
 %left OR /* Precedence = 8 */
 %right ASSIGN /* Precedence = 9 */
-%type <string> identifier identifiers functions function declarations declaration statements var
+%type <string> identifier identifiers functions function declarations declaration statements statement vars var
+%type <exp_struct> expression
 
 %%
 
 %start program_start;
 
 program_start: functions {
-			if (!semantic_error) {
+			//FIXME: if (!semantic_error) {
 				std::cout << $1 << std::endl;
-			}
+				cout << endl;
+				cout << "Printing the variables in the symbol table" << endl;
+				for (int i = 0; i < sym_table.size(); ++i) {
+					cout << "Variable: " << sym_table.at(i) << ", type: " << sym_type.find(sym_table.at(i))->second << endl;
+				}			
+			//}
 		}
 functions: function functions {
 		$$ = $1;
@@ -75,7 +98,7 @@ functions: function functions {
 	   }
            | /* epsilon */ {$$ = "";}
            ;
-function: FUNCTION identifiers SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGINLOCALS declarations ENDLOCALS BEGINBODY statements ENDBODY {
+function: FUNCTION identifier SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGINLOCALS declarations ENDLOCALS BEGINBODY statements ENDBODY {
 		$$ = "func " + $2 + "\n";
 		if ($5 != "") {
 			$$ += $5 + "\n";
@@ -91,29 +114,58 @@ function: FUNCTION identifiers SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGI
 	;
 identifier: IDENT {$$ = $1;}
 	  ;
-identifiers: identifier COMMA identifiers {std::cout << "identifiers -> identifier COMMA identifiers\n";}
-	     | identifier {$$ = $1;}
+identifiers: identifier COMMA identifiers {
+		ident_list.push_back($1);
+	     }
+	     | identifier {
+	     	ident_list.push_back($1);
+	     }
 	     ;
 declarations: /* epsilon */ {$$ = "";}
-	      | declaration SEMICOLON declarations {$$ = $1 + "\n" + $3;}
+	      | declaration SEMICOLON declarations {
+	      	$$ = $1;
+		if ($3 != "") {
+			$$ += "\n" + $3;
+		}
+	      }
 	      ;
 declaration: identifiers COLON INTEGER {
 		/* Variable declaration of type integer */
-		sym_table.push_back($1);
-		sym_type.push_back("integer");
-		$$ = ". " + $1;
+		for (int i = 0; i < ident_list.size(); ++i) {	
+			if (!in_sym_table(ident_list.at(i))) {
+				sym_table.push_back(ident_list.at(i));
+				sym_type.insert(pair<string, int>(ident_list.at(i), 0));
+				$$ = ". " + $1; // Code for an integer declaration
+			}
+			else {
+				std::cerr << "Error: redeclaration of variable " << ident_list.at(i) << std::endl;
+				semantic_error = true;	
+			}
+		}
+		ident_list.clear(); 
 	     }
 	     | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {
 		/* Variable declaration of a 1-D array */
-		sym_table.push_back($1);
-		sym_type.push_back("array_1_d");
-		$$ = ".[] " + $1 + "," + to_string($5);
+		if (!in_sym_table($1)) {
+			sym_table.push_back($1);
+			sym_type.insert(pair<string, int>($1, 1));
+			$$ = ".[] " + $1 + "," + to_string($5);
+		}
+		else {
+			std::cerr << "Error: redeclaration of variable " << $1 << std::endl;
+			semantic_error = true;
+		}
 	     }
              | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {
 		/* Variable declaration of a 2-D array */
-		sym_table.push_back($1);
-		sym_type.push_back("array_2_d");
-		
+		if (!in_sym_table($1)) {
+			sym_table.push_back($1);
+			sym_type.insert(pair<string, int>($1, 2));
+		}
+		else {
+			std::cerr << "Error: redeclaration of variable " << $1 << std::endl;
+			semantic_error = true;
+		}	
 	     }
 	     ;
 comp: EQ {std::cout << "comp -> EQ\n";}
@@ -133,11 +185,21 @@ var: identifier {
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET {std::cout << "var -> identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET\n";}
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET {std::cout << "var -> identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET\n";}
      ;
-vars: var {std::cout << "vars -> var\n";}
-      | var COMMA vars {std::cout << "vars -> var COMMA vars\n";}
+vars: var {
+	var_list.push_back($1);
+      }
+      | var COMMA vars {
+	var_list.push_back($1);
+      }
       ;
 term: SUB var {
-		
+      	temp = newTemp();
+	if (!in_sym_table($2)) {
+		std::cerr << "Semantic error: " << $2 << " not declared" << std::endl;
+		semantic_error = true;
+	}
+	$$ = $2 + "\n";
+	$$ += "* " + temp + ", " + $2 + ", -1";      		
       }
       | SUB NUMBER {std::cout << "term -> SUB NUMBER\n";}
       | SUB L_PAREN expression R_PAREN {std::cout << "term -> SUB L_PAREN expression R_PAREN\n";}
@@ -173,8 +235,15 @@ relation_and_expression: relation_expression {std::cout << "relation_and_express
 bool_expression: relation_and_expression {std::cout << "bool_expression -> relation_and_expression\n";}
 	    	 | relation_and_expression OR relation_and_expression {std::cout << "bool_expression -> relation_and_expression OR relation_and_expression\n";}
 		 ;
-statements: statement SEMICOLON statements {std::cout << "statements -> statement SEMICOLON statements\n";}
-	    | /* epsilon */ {std::cout << "statements -> epsilon\n";}
+statements: statement SEMICOLON statements {
+		if ($3 != "") {
+			$$ += $1 + "\n" + $3;
+		}
+		else {
+			$$ = $1;
+		}
+	    }
+	    | /* epsilon */ {$$ = "";}
 	    ;
 statement: var ASSIGN expression {std::cout << "statement -> var ASSIGN expression\n";}
 	   | IF bool_expression THEN statements ENDIF {std::cout << "statement -> IF bool_expression THEN statements ENDIF\n";}
@@ -182,8 +251,36 @@ statement: var ASSIGN expression {std::cout << "statement -> var ASSIGN expressi
 	   | WHILE bool_expression BEGINLOOP statements ENDLOOP {std::cout << "statement -> WHILE bool_expression BEGINLOOP statements ENDLOOP\n";}
 	   | DO BEGINLOOP statements ENDLOOP WHILE bool_expression {std::cout << "statement -> DO BEGINLOOP statements ENDLOOP WHILE bool_expression\n";}
 	   | FOR var ASSIGN NUMBER SEMICOLON bool_expression SEMICOLON var ASSIGN expression BEGINLOOP statements ENDLOOP {std::cout << "FOR var ASSIGN NUMBER SEMICOLON bool_expression SEMICOLON var ASSIGN expression BEGINLOOP statements ENDLOOP\n";}
-	   | READ vars {std::cout << "statement -> READ vars\n";}
-	   | WRITE vars {std::cout << "statement -> WRITE vars\n";}
+	   | READ vars {
+		for (int i = 0; i < var_list.size(); ++i) {
+			if (in_sym_table(var_list.at(i))) {
+				if (sym_type.find(var_list.at(i))->second == 0) {
+					if (i < var_list.size() - 1) {
+						$$ += ".< " + var_list.at(i) + "\n";
+					}
+					else {
+						$$ += ".< " + var_list.at(i);
+					}
+				}
+				else if (sym_type.find(var_list.at(i))->second == 1) {
+					if (i < var_list.size() - 1) {
+						$$ += ".[]< " + var_list.at(i) + "\n";
+					}
+					else {
+						$$ += ".[]< " + var_list.at(i);
+					}
+				}
+			}	
+			else {
+				std::cerr << "Error: variable " << $2 << " not declared" << std::endl;
+				semantic_error = true;
+			}	
+		}
+		var_list.clear();	
+	   }
+	   | WRITE vars {
+		/* Do nothing for now */		
+	   }
 	   | CONTINUE {std::cout << "statement -> CONTINUE\n";}
 	   | RETURN expression {std::cout << "statement -> RETURN expression\n";}
 	   ;
@@ -225,3 +322,50 @@ bool in_sym_table(string symbol) {
 	}
 	return false;	
 }
+int find_symbol(string symbol) {
+	for (int i = 0; i < sym_table.size(); ++i) {
+		if (sym_table.at(i) == symbol) {
+			return i;
+		}
+	}
+	return -1;
+}
+bool in_label_table(string label) {
+	for (int i = 0; i < label_table.size(); ++i) {
+		if (label_table.at(i) == label) {
+			return true;
+		}
+	}
+	return false;
+}
+string newTemp() {
+	/* Ensure temporary variable not already in symbol table */
+	tempVar = "_temp_" + to_string(tempIndex);
+	if (in_sym_table(tempVar)) {
+		++tempIndex;
+		tempVar = "_temp_" + to_string(tempIndex);
+		// Insert the temporary variable into the symbol table
+		sym_table.push_back(tempVar);
+		// Return the temporary variable
+		return tempVar;
+	}
+	tempVar = "_temp_" + to_string(tempIndex);
+	++tempIndex;
+	sym_table.push_back(tempVar);
+	return tempVar;
+}
+string newLabel() {
+	/* Ensure label hasn't already been used */
+	tempLabel = "_label_" + to_string(tempLabIndex);
+	if (in_label_table(tempLabel)) {
+		++tempLabIndex;
+		tempLabel = "_label_" + to_string(tempLabIndex);
+		label_table.push_back(tempLabel);
+		return tempLabel;
+	}
+	tempLabel = "_temp_" + to_string(tempLabIndex);
+	++tempLabIndex;
+	label_table.push_back(tempLabel);
+	return tempLabel;
+}
+	
