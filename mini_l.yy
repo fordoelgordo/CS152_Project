@@ -22,6 +22,10 @@
 	#include <vector>
 	#include <string>
 	/* Define other data structures for non-terminals */
+	struct exp_struct {
+		int place; /* Location in the symbol table of the name of the variable that holds the expression's value */
+		string code; /* The code that generates the expression */
+	};
 }
 
 %code
@@ -51,10 +55,6 @@
 	bool in_sym_table(string symbol); /* Check if the passed symbol is in the symbol table */
 	int find_symbol(string symbol);  /* Return the location of the passed symbol in the symbol table */
 	bool in_label_table(string label);
-	struct exp_struct {
-		int place; /* Location in the symbol table of the name of the variable that holds the expression's value */
-		string code; /* The code that generates the expression */
-	}
 }
 
 %token END 0 "end of file";
@@ -73,8 +73,8 @@
 %left AND /* Precedence = 7 */
 %left OR /* Precedence = 8 */
 %right ASSIGN /* Precedence = 9 */
-%type <string> identifier identifiers functions function declarations declaration statements statement vars var
-%type <exp_struct> expression
+%type <string> identifier identifiers functions function declarations declaration statements statement vars
+%type <exp_struct> expression term var
 
 %%
 
@@ -180,26 +180,26 @@ var: identifier {
 		std::cerr << "Semantic error: " << $1 << " not declared" << std::endl;
 		semantic_error = true;	
 	}
-	$$ = $1;
+	$$.place = find_symbol($1);
+	$$.code = $1;
      }
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET {std::cout << "var -> identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET\n";}
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET {std::cout << "var -> identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET\n";}
      ;
 vars: var {
-	var_list.push_back($1);
+	var_list.push_back(sym_table.at($1.place));
       }
       | var COMMA vars {
-	var_list.push_back($1);
+	var_list.push_back(sym_table.at($1.place));
       }
       ;
 term: SUB var {
-      	temp = newTemp();
-	if (!in_sym_table($2)) {
-		std::cerr << "Semantic error: " << $2 << " not declared" << std::endl;
-		semantic_error = true;
-	}
-	$$ = $2 + "\n";
-	$$ += "* " + temp + ", " + $2 + ", -1";      		
+      	temp = newTemp(); // New temporary has been created and inserted into the symbol table
+	$$.place = find_symbol(temp);	
+	$$.code += "\n";
+	$$.code += ". " + temp;
+	$$.code += "\n";
+	$$.code += "* " + temp + ", " + sym_table.at($2.place) + ", -1"; // Code to negate the var
       }
       | SUB NUMBER {std::cout << "term -> SUB NUMBER\n";}
       | SUB L_PAREN expression R_PAREN {std::cout << "term -> SUB L_PAREN expression R_PAREN\n";}
