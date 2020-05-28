@@ -74,13 +74,13 @@ loc.step();
 "+"			{return yy::parser::make_ADD(loc);}
 "*"			{return yy::parser::make_MULT(loc);}
 "/"			{return yy::parser::make_DIV(loc);}
-"<="			{return yy::parser::make_LTE(loc);}
-"<"			{return yy::parser::make_LT(loc);}
-">="			{return yy::parser::make_GTE(loc);}
-">"		  	{return yy::parser::make_GT(loc);}
+"<="			{return yy::parser::make_LTE(yytext, loc);}
+"<"			{return yy::parser::make_LT(yytext, loc);}
+">="			{return yy::parser::make_GTE(yytext, loc);}
+">"		  	{return yy::parser::make_GT(yytext, loc);}
 ":="			{return yy::parser::make_ASSIGN(loc);}
-"=="			{return yy::parser::make_EQ(loc);}
-"<>"			{return yy::parser::make_NEQ(loc);}
+"=="			{return yy::parser::make_EQ(yytext, loc);}
+"!="			{return yy::parser::make_NEQ(yytext, loc);}
 "["			{return yy::parser::make_L_SQUARE_BRACKET(loc);}
 "]"			{return yy::parser::make_R_SQUARE_BRACKET(loc);}
 "%"			{return yy::parser::make_MOD(loc);}
