@@ -127,6 +127,7 @@ function: FUNCTION identifier SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGIN
 			$$ += $11.code + "\n";
 		}
 		$$ += "endfunc";
+		$$ += "\n";
 		sym_table.clear(); // Clear the symbol table after evaulating all declarations within each function 
 		sym_type.clear(); // Clear the associated symbol type table as well
 		label_table.clear();
@@ -361,7 +362,7 @@ statements: statement SEMICOLON statements {
 	    }
 	    ;
 statement: var ASSIGN expression {
-		$$.code = $1.code + "\n";
+		//$$.code = $1.code + "\n";
 		$$.code += $3.code + "\n";
 		$$.code += "= " + sym_table.at($1.place) + "," + sym_table.at($3.place);
 	   }
