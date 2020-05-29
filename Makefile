@@ -2,6 +2,8 @@
 parser: mini_l.lex mini_l.yy
 	bison -v -d --file-prefix=parser mini_l.yy
 	flex mini_l.lex
+#	gcc -o parser y.tab.c lex.yy.c -lfl
+	#gcc -o parser y.tab.c lex.yy.c -ll
 	g++ -std=c++11 -o parser parser.tab.cc lex.yy.c -lfl
 
 clean:
