@@ -1,15 +1,22 @@
 /*
- * Create flex scanner specification file for MINI-L language
+ * Flex scanner specification file for MINI-L language using Abbas' template
 */
 
- /* Variable declaration */
+/* Variable declarations */
 %{
-	#include "y.tab.h"
-	int currPos = 1;
-	int currLine = 1;
+	#include <iostream>
+	#define YY_DECL yy::parser::symbol_type yylex()
+	#include "parser.tab.hh"
+	static yy::location loc;
 %}
 
- /* Definitions */
+%option noyywrap 
+
+%{
+	#define YY_USER_ACTION loc.columns(yyleng);
+%}
+
+/* Definitions */
 DIGIT [0-9]
 LETTER [a-zA-Z]
 IDENTIFIER ({LETTER}({LETTER}|{DIGIT}|"_")*({LETTER}|{DIGIT}))|{LETTER}
@@ -18,63 +25,77 @@ ERROR_IDENTIFIER_UNDERSCORE_END {IDENTIFIER}"_"+
 
 %%
 
- /* Rules */
-"function"						{currPos += yyleng; return FUNCTION;}
-"beginparams"						{currPos += yyleng; return BEGINPARAMS;}
-"endparams"						{currPos += yyleng; return ENDPARAMS;}
-"beginbody"						{currPos += yyleng; return BEGINBODY;}
-"endbody"						{currPos += yyleng; return ENDBODY;}
-"beginlocals"						{currPos += yyleng; return BEGINLOCALS;}
-"endlocals"						{currPos += yyleng; return ENDLOCALS;}
-"integer"						{currPos += yyleng; return INTEGER;}
-"if"							{currPos += yyleng; return IF;}
-"then"							{currPos += yyleng; return THEN;}
-"else"							{currPos += yyleng; return ELSE;}
-"endif"							{currPos += yyleng; return ENDIF;}
-"return"						{currPos += yyleng; return RETURN;}
-"read"							{currPos += yyleng; return READ;}
-"write"							{currPos += yyleng; return WRITE;}
-"do"							{currPos += yyleng; return DO;}
-"beginloop"						{currPos += yyleng; return BEGINLOOP;}
-"while"							{currPos += yyleng; return WHILE;}
-"and"							{currPos += yyleng; return AND;}
-"or"							{currPos += yyleng; return OR;}
-"not"							{currPos += yyleng; return NOT;}
-"continue"						{currPos += yyleng; return CONTINUE;}
-"endloop"						{currPos += yyleng; return ENDLOOP;}
-"array"							{currPos += yyleng; return ARRAY;}
-"of"							{currPos += yyleng; return OF;}
-"true"							{currPos += yyleng; return TRUE;}
-"false"							{currPos += yyleng; return FALSE;}
-"for"							{currPos += yyleng; return FOR;}
-";"							{++currPos; return SEMICOLON;}
-":"							{++currPos; return COLON;}
-"("							{++currPos; return L_PAREN;}
-")"							{++currPos; return R_PAREN;}
-"-"							{++currPos; return SUB;}
-"+"							{++currPos; return ADD;}
-"*"							{++currPos; return MULT;}
-"/"							{++currPos; return DIV;}
-"<="							{currPos += yyleng; return LTE;}
-"<"							{currPos += yyleng; return LT;}
-">="							{currPos += yyleng; return GTE;}
-">"							{++currPos; return GT;}
-":="							{currPos += yyleng; return ASSIGN;}
-"=="							{currPos += yyleng; return EQ;}
-"<>"							{currPos += yyleng; return NEQ;}
-"["							{++currPos; return L_SQUARE_BRACKET;}
-"]"							{++currPos; return R_SQUARE_BRACKET;}
-"%"							{++currPos; return MOD;}
-","							{++currPos; return COMMA;}
-##[^\n]*						{/* Ignore comments and tabs on the current line */ currPos += yyleng;} 
-{IDENTIFIER}						{currPos += yyleng; yylval.cval = yytext; return IDENT;}
-{DIGIT}+						{currPos += yyleng; yylval.ival = atoi(yytext); return NUMBER;}
-[ \t]+							{/* Ignore spaces and tabs on current line */ currPos += yyleng;}
-"\n"							{++currLine; currPos = 1; /* Don't have a purpose in the programming language */}
-"\r"							{++currLine; currPos = 1; /* Don't have a purpose in the programming language */}
-{ERROR_IDENTIFIER_DIGIT_UNDERSCORE_START}    		{printf("Error at line %d, column %d: identifier \"%s\" must begin with a letter\n", currLine, currPos, yytext); exit(0); }
-{ERROR_IDENTIFIER_UNDERSCORE_END} 			{printf("Error at line %d, column %d: identifier \"%s\" cannot end with an underscore\n", currLine, currPos, yytext); exit(0); }
-"="							{++currPos; /* = not technically a valid token */} 
-.              						{printf("Error at line %d, column %d: unrecognized symbol \"%s\"\n", currLine, currPos, yytext); exit(0);}
+%{
+loc.step(); 
+%}
+
+	/* your rules here */
+
+	/* use this structure to pass the Token :
+	 * return yy::parser::make_TokenName(loc)
+	 * if the token has a type you can pass it's value
+	 * as the first argument. as an example we put
+	 * the rule to return token function.
+	 */
+
+"function"       	{return yy::parser::make_FUNCTION(loc);}
+"beginparams"	 	{return yy::parser::make_BEGINPARAMS(loc);}
+"endparams"		{return yy::parser::make_ENDPARAMS(loc);}
+"beginbody"		{return yy::parser::make_BEGINBODY(loc);}
+"endbody"		{return yy::parser::make_ENDBODY(loc);}
+"beginlocals"	 	{return yy::parser::make_BEGINLOCALS(loc);}
+"endlocals"		{return yy::parser::make_ENDLOCALS(loc);}
+"integer"		{return yy::parser::make_INTEGER(loc);}
+"if"			{return yy::parser::make_IF(loc);}
+"then"			{return yy::parser::make_THEN(loc);}
+"else"		     	{return yy::parser::make_ELSE(loc);}
+"endif"			{return yy::parser::make_ENDIF(loc);}
+"return"		{return yy::parser::make_RETURN(loc);}
+"read"		     	{return yy::parser::make_READ(loc);}
+"write"			{return yy::parser::make_WRITE(loc);}
+"do"			{return yy::parser::make_DO(loc);}
+"beginloop"		{return yy::parser::make_BEGINLOOP(loc);}
+"while"			{return yy::parser::make_WHILE(loc);}
+"and"			{return yy::parser::make_AND(loc);}
+"or"			{return yy::parser::make_OR(loc);}
+"not"			{return yy::parser::make_NOT(loc);}
+"continue"		{return yy::parser::make_CONTINUE(loc);}
+"endloop"		{return yy::parser::make_ENDLOOP(loc);}
+"array"			{return yy::parser::make_ARRAY(loc);}
+"of"			{return yy::parser::make_OF(loc);}
+"true"			{return yy::parser::make_TRUE(loc);}
+"false"			{return yy::parser::make_FALSE(loc);}
+"for"			{return yy::parser::make_FOR(loc);}
+";"			{return yy::parser::make_SEMICOLON(loc);}
+":"			{return yy::parser::make_COLON(loc);}
+"("			{return yy::parser::make_L_PAREN(loc);}
+")"			{return yy::parser::make_R_PAREN(loc);}
+"-"			{return yy::parser::make_SUB(loc);}
+"+"			{return yy::parser::make_ADD(loc);}
+"*"			{return yy::parser::make_MULT(loc);}
+"/"			{return yy::parser::make_DIV(loc);}
+"<="			{return yy::parser::make_LTE(yytext, loc);}
+"<"			{return yy::parser::make_LT(yytext, loc);}
+">="			{return yy::parser::make_GTE(yytext, loc);}
+">"		  	{return yy::parser::make_GT(yytext, loc);}
+":="			{return yy::parser::make_ASSIGN(loc);}
+"=="			{return yy::parser::make_EQ(yytext, loc);}
+"!="			{return yy::parser::make_NEQ(yytext, loc);}
+"["			{return yy::parser::make_L_SQUARE_BRACKET(loc);}
+"]"			{return yy::parser::make_R_SQUARE_BRACKET(loc);}
+"%"			{return yy::parser::make_MOD(loc);}
+","			{return yy::parser::make_COMMA(loc);}
+##[^\n]*		{/* Ignore comments and tabs on the current line */} 
+{IDENTIFIER}	 	{return yy::parser::make_IDENT(yytext, loc);}
+{DIGIT}+		{return yy::parser::make_NUMBER(std::stoi(yytext), loc);}
+[ \t]+			{/* Ignore spaces and tabs on current line */ }
+"\n"			{/* Don't have a purpose in the programming language */}
+"\r"			{/* Don't have a purpose in the programming language */}
+{ERROR_IDENTIFIER_DIGIT_UNDERSCORE_START}  {std::cerr << loc << ": identifier \"" << yytext << "\" must begin with a letter" << std::endl; exit(1);}
+{ERROR_IDENTIFIER_UNDERSCORE_END} 	   {std::cerr << loc << ": identifier \"" << yytext << "\" cannot end with an underscore " << std::endl; exit(1);}
+"="					   {/* = not technically a valid token */} 
+.              		                   {std::cerr << loc << ": unrecognized symbol \"" << yytext << "\"" << std::endl; exit(1);}
+ <<EOF>>	{return yy::parser::make_END(loc);}
+	/* your rules end */
 
 %%
