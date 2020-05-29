@@ -22,6 +22,10 @@
 	#include <vector>
 	#include <string>
 	/* Define other data structures for non-terminals */
+	struct dec_struct {
+		vector<string> ids;
+		string code;
+	};
 	struct exp_struct {
 		int place; /* Location in the symbol table of the name of the variable that holds the expression's value */
 		string code; /* The code that generates the expression */
@@ -80,7 +84,8 @@
 %left AND /* Precedence = 7 */
 %left OR /* Precedence = 8 */
 %right ASSIGN /* Precedence = 9 */
-%type <string> identifier identifiers functions function declarations declaration vars comp
+%type <string> identifier identifiers functions function vars comp
+%type <dec_struct> declarations declaration
 %type <exp_struct> expression expressions term var bool_expression relation_expression relation_and_expression multiplicative_expression
 %type <stmt_struct> statements statement
 
@@ -117,11 +122,22 @@ function: FUNCTION identifier SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGIN
 			semantic_error = true;
 		}
 		$$ = "func " + $2 + "\n";
-		if ($5 != "") {
-			$$ += $5 + "\n";
+		if ($5.code != "") {
+			$$ += $5.code + "\n";
+			if ($2 != "main") {
+				for (int i = 0; i < $5.ids.size(); ++i) {
+					if (i < $5.ids.size() - 1) {
+						$$ += "= " + $5.ids.at(i) + ", $" + to_string(i) + "\n";
+					}
+					else {
+						$$ += "= " + $5.ids.at(i) + ", $" + to_string(i);
+					}
+				}
+			}
+			$$ += "\n";
 		}
-		if ($8 != "") {
-			$$ += $8 + "\n";
+		if ($8.code != "") {
+			$$ += $8.code + "\n";
 		}
 		if ($11.code != "") {
 			$$ += $11.code + "\n";
@@ -144,11 +160,17 @@ identifiers: identifier COMMA identifiers {
 	     	ident_list.push_back($1);
 	     }
 	     ;
-declarations: /* epsilon */ {$$ = "";}
+declarations: /* epsilon */ {$$.code = "";}
 	      | declaration SEMICOLON declarations {
-	      	$$ = $1;
-		if ($3 != "") {
-			$$ += "\n" + $3;
+	      	for (int i = 0; i < $1.ids.size(); ++i) {
+			$$.ids.push_back($1.ids.at(i));
+		}
+		for (int i = 0; i < $3.ids.size(); ++i) {
+			$$.ids.push_back($3.ids.at(i));
+		}
+		$$.code = $1.code;
+		if ($3.code != "") {
+			$$.code += "\n" + $3.code;
 		}
 	      }
 	      ;
@@ -159,7 +181,13 @@ declaration: identifiers COLON INTEGER {
 				if (!in_reserved_words(ident_list.at(i))) {
 					sym_table.push_back(ident_list.at(i));
 					sym_type.insert(pair<string, int>(ident_list.at(i), 0));
-					$$ = ". " + ident_list.at(i); // Code for an integer declaration
+					$$.ids.push_back(ident_list.at(i));
+					if (i < ident_list.size() - 1) {
+						$$.code += ". " + ident_list.at(i) + "\n"; // Code for an integer declaration
+					}
+					else {
+						$$.code += ". " + ident_list.at(i);
+					}
 				}
 				else {
 					yy::parser::syntax_error(@1, "Declaration of variable with same name as a reserved word");
@@ -174,7 +202,8 @@ declaration: identifiers COLON INTEGER {
 		ident_list.clear(); 
 	     }
 	     | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {
-		/* Variable declaration of a 1-D array */
+		//Variable declaration of a 1-D array 
+		/*
 		if (!in_sym_table($1)) {
 			sym_table.push_back($1);
 			sym_type.insert(pair<string, int>($1, 1));
@@ -184,9 +213,11 @@ declaration: identifiers COLON INTEGER {
 			std::cerr << "Error: redeclaration of variable " << $1 << std::endl;
 			semantic_error = true;
 		}
+		*/
 	     }
              | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {
-		/* Variable declaration of a 2-D array */
+		//Variable declaration of a 2-D array
+		/*
 		if (!in_sym_table($1)) {
 			sym_table.push_back($1);
 			sym_type.insert(pair<string, int>($1, 2));
@@ -195,6 +226,7 @@ declaration: identifiers COLON INTEGER {
 			std::cerr << "Error: redeclaration of variable " << $1 << std::endl;
 			semantic_error = true;
 		}	
+		*/
 	     }
 	     ;
 comp: EQ {$$ = $1;}
