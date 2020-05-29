@@ -175,7 +175,7 @@ declarations: /* epsilon */ {$$.code = "";}
 	      }
 	      ;
 declaration: identifiers COLON INTEGER {
-		/* Variable declaration of type integer */
+		// Variable declaration of type integer
 		for (int i = 0; i < ident_list.size(); ++i) {	
 			if (!in_sym_table(ident_list.at(i))) {
 				if (!in_reserved_words(ident_list.at(i))) {
@@ -202,18 +202,31 @@ declaration: identifiers COLON INTEGER {
 		ident_list.clear(); 
 	     }
 	     | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {
-		//Variable declaration of a 1-D array 
-		/*
-		if (!in_sym_table($1)) {
-			sym_table.push_back($1);
-			sym_type.insert(pair<string, int>($1, 1));
-			$$ = ".[] " + $1 + "," + to_string($5);
+		// Variable declaration of a 1-D array 
+		for (int i = 0; i < ident_list.size(); ++i) {	
+			if (!in_sym_table(ident_list.at(i))) {
+				if (!in_reserved_words(ident_list.at(i))) {
+					sym_table.push_back(ident_list.at(i));
+					sym_type.insert(pair<string, int>(ident_list.at(i), 0));
+					$$.ids.push_back(ident_list.at(i));
+					if (i < ident_list.size() - 1) {
+						$$.code += ".[] " + ident_list.at(i) + ", " + to_string($5) + "\n"; // Code for an integer declaration
+					}
+					else {
+						$$.code += ".[] " + ident_list.at(i) + ", " + to_string($5);
+					}
+				}
+				else {
+					yy::parser::syntax_error(@1, "Declaration of variable with same name as a reserved word");
+					semantic_error = true;
+				}
+			}
+			else {
+				yy::parser::syntax_error(@1, "Redeclaration of variable " + ident_list.at(i));
+				semantic_error = true;	
+			}
 		}
-		else {
-			std::cerr << "Error: redeclaration of variable " << $1 << std::endl;
-			semantic_error = true;
-		}
-		*/
+		ident_list.clear(); 
 	     }
              | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {
 		//Variable declaration of a 2-D array
@@ -255,9 +268,29 @@ vars: var {
       }
       ;
 term: SUB var {
+	temp = newTemp();
+	sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($2.place))->second));
+	$$.place = find_symbol(temp);
+	$$.code = ". " + temp + "\n";
+	$$.code += "* " + sym_table.at($2.place) + ", " + sym_table.at($2.place) + ", " + "-" + to_string(1) + "\n";
+	$$.code += "= " + temp + ", " + sym_table.at($2.place);
       }
-      | SUB NUMBER {std::cout << "term -> SUB NUMBER\n";}
-      | SUB L_PAREN expression R_PAREN {std::cout << "term -> SUB L_PAREN expression R_PAREN\n";}
+      | SUB NUMBER {
+	temp = newTemp();
+	sym_type.insert(pair<string, int>(temp, 0));
+	$$.place = find_symbol(temp);
+	$$.code = ". " + temp + "\n";
+	$$.code += "= " + temp + ", " + "-" + to_string($2);
+      }
+      | SUB L_PAREN expression R_PAREN {
+	temp = newTemp();
+	sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($3.place))->second));
+	$$.place = find_symbol(temp);
+	$$.code = $3.code + "\n";
+	$$.code += ". " + temp + "\n";
+	$$.code += "* " + sym_table.at($3.place) + ", " + sym_table.at($3.place) + ", " + "-" + to_string(1) + "\n";
+	$$.code += "= " + temp + ", " + sym_table.at($3.place);	
+      }
       | var {
 	temp = newTemp();
 	sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($1.place))->second));
@@ -316,9 +349,30 @@ expression: multiplicative_expression {
 	    }
 	    ;
 multiplicative_expression: term {$$.place = $1.place; $$.code = $1.code;}
-			   | term MULT multiplicative_expression {std::cout << "multiplicative_expression -> term MULT multiplicative_expression\n";}
-			   | term DIV multiplicative_expression {std::cout << "multiplicative_expression -> term DIV multiplicative_expression\n";}
-                           | term MOD multiplicative_expression {std::cout << "multiplicative_expression -> term MOD multiplicative_expression\n";}
+			   | term MULT multiplicative_expression {
+				temp = newTemp();
+				sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($1.place))->second));
+				$$.place = find_symbol(temp);
+				$$.code = $1.code + "\n" + $3.code + "\n";
+				$$.code += ". " + temp + "\n";
+				$$.code += "* " + temp + ", " + sym_table.at($1.place) + ", " + sym_table.at($3.place);
+			   }
+			   | term DIV multiplicative_expression {
+				temp = newTemp();
+				sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($1.place))->second));
+				$$.place = find_symbol(temp);
+				$$.code = $1.code + "\n" + $3.code + "\n";
+				$$.code += ". " + temp + "\n";
+				$$.code += "/ " + temp + ", " + sym_table.at($1.place) + ", " + sym_table.at($3.place);
+			   }
+                           | term MOD multiplicative_expression {
+				temp = newTemp();
+				sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($1.place))->second));
+				$$.place = find_symbol(temp);
+				$$.code = $1.code + "\n" + $3.code + "\n";
+				$$.code += ". " + temp + "\n";
+				$$.code += "% " + temp + ", " + sym_table.at($1.place) + ", " + sym_table.at($3.place);
+			   }
                            ;
 relation_expression: TRUE {std::cout << "relation_expression -> TRUE\n";}
  		     | FALSE {std::cout << "relation_expression -> FALSE\n";}
@@ -407,23 +461,6 @@ statement: var ASSIGN expression {
 		$$.code += ": " + $$.begin + "\n";
 		$$.code += $4.code + "\n";
 		$$.code += ": " + $$.after; 
-		/*FIXME: adjust this code
-		label = newLabel();
-		$$.begin = label;
-		$$.code = ": " + label + "\n"; // Declare the label for statement.begin
-		$$.code += $2.code + "\n"; // Evaluate expression
-		temp = newTemp();
-		sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($2.place))->second));
-		$$.code += ". " + temp + "\n"; // Declare the new variable
-		$$.code += "= " + temp + "," + sym_table.at($2.place) + "\n"; // Copy value bool_expression to new variable
-		$$.code += "! " + temp + "," + temp + "\n"; // Negate the value of bool_expression
-		$$.code += "?:= " + $4.after + "," + temp + "\n"; // Go statement.after if not true
-		$$.code += $4.code + "\n";
-		label = newLabel();
-		$$.after = label;
-		$$.code += ":= " + $$.after + "\n";
-		$$.code += ": " + $$.after;
-		*/
 	   }
 	   | IF bool_expression THEN statements ELSE statements ENDIF {std::cout << "statement -> IF bool_expression THEN statements ELSE statements ENDIF\n";}
 	   | WHILE bool_expression BEGINLOOP statements ENDLOOP {std::cout << "statement -> WHILE bool_expression BEGINLOOP statements ENDLOOP\n";}
