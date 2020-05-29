@@ -266,24 +266,20 @@ expression: multiplicative_expression {
 		$$.code = $1.code;
 	    }
             | multiplicative_expression ADD expression {
-		/*
 		temp = newTemp();
 		sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($3.place))->second));
 		$$.place = find_symbol(temp);
 		$$.code = $1.code + "\n" + $3.code + "\n";
 		$$.code += ". " + temp + "\n";
-		$$.code += "+ " + temp + "," + sym_table.at($1.place) + "," + sym_table.at($3.place);
-	    	*/
+		$$.code += "+ " + temp + ", " + sym_table.at($1.place) + ", " + sym_table.at($3.place);
 	    }
 	    | multiplicative_expression SUB expression {
-		/*
 		temp = newTemp();
 		sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($3.place))->second));
 		$$.place = find_symbol(temp);
 		$$.code = $1.code + "\n" + $3.code + "\n";
 		$$.code += ". " + temp + "\n";
-		$$.code += "- " + temp + "," + sym_table.at($1.place) + "," + sym_table.at($3.place);
-	    	*/
+		$$.code += "- " + temp + ", " + sym_table.at($1.place) + ", " + sym_table.at($3.place);
 	    }
 	    ;
 multiplicative_expression: term {$$.place = $1.place; $$.code = $1.code;}
@@ -351,15 +347,15 @@ bool_expression: relation_and_expression {$$.place = $1.place; $$.code = $1.code
 		 }
 		 ;
 statements: statement SEMICOLON statements {
-		$$.begin = $1.begin;
-		$$.after = $3.after;
+		//$$.begin = $1.begin;
+		//$$.after = $3.after;
 		$$.code = $1.code;
 		if ($3.code != "") {
 			$$.code += "\n" + $3.code;
 		}
 	    }
 	    | /* epsilon */ {
-		$$.begin = "";
+	    	$$.begin = "";
 		$$.after = "";
 		$$.code = "";
 	    }
@@ -370,14 +366,14 @@ statement: var ASSIGN expression {
 		$$.code += "= " + sym_table.at($1.place) + "," + sym_table.at($3.place);
 	   }
 	   | IF bool_expression THEN statements ENDIF {
+		$$.code = $2.code + "\n";
 		$$.begin = newLabel();
 		$$.after = newLabel();
-		$$.code = ": " + $$.begin + "\n";
-		$$.code += $2.code + "\n";
-		$$.code += "?:= " + $4.begin + ", " + sym_table.at($2.place) + "\n";
+		$$.code += "?:= " + $$.begin + ", " + sym_table.at($2.place) + "\n";
 		$$.code += ":= " + $$.after + "\n";
+		$$.code += ": " + $$.begin + "\n";
 		$$.code += $4.code + "\n";
-		$$.code += ": " + $$.after;	
+		$$.code += ": " + $$.after; 
 		/*FIXME: adjust this code
 		label = newLabel();
 		$$.begin = label;
