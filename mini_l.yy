@@ -68,10 +68,12 @@
 	vector<exp_struct> var_list;
 	queue<pair<string, string> > loop_labels;
 	vector<string> reserved_words{"function","beginparams","endparams","beginbody","endbody","beginlocals","endlocals","integer","if","then","else","endif","return","read","write","do","beginloop","while","and","or","not","continue","endloop","array","of","true","false"};
+	vector<string> function_list;
 	bool in_sym_table(string symbol); /* Check if the passed symbol is in the symbol table */
 	int find_symbol(string symbol);  /* Return the location of the passed symbol in the symbol table */
 	bool in_label_table(string label);
 	bool in_reserved_words(string word);
+	bool has_main = false;
 }
 
 %token END 0 "end of file";
@@ -100,10 +102,17 @@
 %start program_start;
 
 program_start: functions {
-			//FIXME
-			//if (!semantic_error) {
+			for (int i = 0; i < function_list.size(); ++i) {
+				if (function_list.at(i) == "main") {
+					has_main = true;
+				}
+			}
+			if (!has_main) {
+				semantic_error = true;
+			}				
+			if (!semantic_error) {
 				std::cout << $1 << std::endl;
-			//}
+			}
 		}
 functions: function functions {
 		$$ = $1;
@@ -118,6 +127,7 @@ function: FUNCTION identifier SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGIN
 			if (!in_reserved_words($2)) {
 				sym_table.push_back($2);
 				sym_type.insert(pair<string, int>($2, 3));
+				function_list.push_back($2);
 			}
 			else {
 				yy::parser::syntax_error(@2, "Declaration of function using reserved word");
@@ -179,6 +189,11 @@ declarations: /* epsilon */ {$$.code = "";}
 		if ($3.code != "") {
 			$$.code += "\n" + $3.code;
 		}
+		//FIXME
+		cout << "Successfully declared:" << endl;
+		for (int i = 0; i < sym_table.size(); ++i) {
+			cout << "Variable: " << sym_table.at(i) << " type: " << sym_type.find(sym_table.at(i))->second << endl;
+		}
 	      }
 	      ;
 declaration: identifiers COLON INTEGER {
@@ -229,6 +244,7 @@ declaration: identifiers COLON INTEGER {
 				}
 			}
 			else {
+				cout << "Trying to redeclare variable " << ident_list.at(i) << " of type " << sym_type.find(ident_list.at(i))->second << endl;
 				yy::parser::syntax_error(@1, "Redeclaration of variable " + ident_list.at(i));
 				semantic_error = true;	
 			}
@@ -258,11 +274,14 @@ comp: EQ {$$ = $1;}
       ;
 var: identifier {
 	if (!in_sym_table($1)) {
+		cout << "Failing in var -> identifier on ident " << $1 << endl;
 		yy::parser::syntax_error(@1, "Variable " + $1 + " not declared");
 		semantic_error = true;	
 	}
-	$$.place = find_symbol($1);
-	$$.code = "";
+	else {
+		$$.place = find_symbol($1);
+		$$.code = "";
+	}
      }
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET {
 	// Ensure the identifier is in the symbol table
@@ -271,23 +290,33 @@ var: identifier {
 		semantic_error = true;
 	}
 	// Ensure the identifier has been declared as an array
-	if (sym_type.find($1)->second != 1 || sym_type.find($1)->second != 2) {
+	if (sym_type.find($1)->second == 0 || sym_type.find($1)->second == 3) {
+		cout << "The identifier " << $1 << " has the wrong type, has type "<< sym_type.find($1)->second << endl;
 		yy::parser::syntax_error(@1, "Attempting to access variable not declared as an array");
 		semantic_error = true;
 	}
-	$$.place = find_symbol($1);
-	$$.code += $3.code;
-	$$.index = sym_table.at($3.place);
+	else {
+		$$.place = find_symbol($1);
+		$$.code += $3.code;
+		$$.index = sym_table.at($3.place);
+	}
      }
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET {std::cout << "var -> identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET\n";}
      ;
 vars: var {
 	//var_list.push_back(sym_table.at($1.place));
-      	var_list.push_back($1);
+	if (in_sym_table(sym_table.at($1.place))) {
+		var_list.push_back($1);
+	}
+	else {
+		cout << "Failing in vars -> var" << endl;
+      	}
       }
       | var COMMA vars {
 	//var_list.push_back(sym_table.at($1.place));
-      	var_list.push_back($1);
+      	if (in_sym_table(sym_table.at($1.place))) {
+		var_list.push_back($1);
+	}
       }
       ;
 term: SUB var {
@@ -295,15 +324,14 @@ term: SUB var {
 	sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($2.place))->second));
 	$$.place = find_symbol(temp);
 	$$.code = ". " + temp + "\n";
-	$$.code += "* " + sym_table.at($2.place) + ", " + sym_table.at($2.place) + ", " + "-" + to_string(1) + "\n";
-	$$.code += "= " + temp + ", " + sym_table.at($2.place);
+	$$.code += "- " + temp + ", " + to_string(0) + ", " + sym_table.at($2.place);
       }
       | SUB NUMBER {
 	temp = newTemp();
 	sym_type.insert(pair<string, int>(temp, 0));
 	$$.place = find_symbol(temp);
 	$$.code = ". " + temp + "\n";
-	$$.code += "= " + temp + ", " + "-" + to_string($2);
+	$$.code += "- " + temp + ", " + to_string(0) + ", " + to_string($2);
       }
       | SUB L_PAREN expression R_PAREN {
 	temp = newTemp();
@@ -311,8 +339,7 @@ term: SUB var {
 	$$.place = find_symbol(temp);
 	$$.code = $3.code + "\n";
 	$$.code += ". " + temp + "\n";
-	$$.code += "* " + sym_table.at($3.place) + ", " + sym_table.at($3.place) + ", " + "-" + to_string(1) + "\n";
-	$$.code += "= " + temp + ", " + sym_table.at($3.place);	
+	$$.code += "- " + temp + ", " + to_string(0) + ", " + sym_table.at($3.place);
       }
       | var {
 	temp = newTemp();
@@ -782,16 +809,6 @@ int main(int argc, char* argv[]) {
 		}
 	}	
 	p.parse();
-
-	/*
-	std::cout.open("mil_code.mil");
-	if (!std::cout.is_open()) {
-		std::cerr << "Error opening mil code file" << std::endl;
-		exit(1);
-	}
-	std::cout << p.parse() << std::endl;
-	std::cout.close();
-	*/
 	
 	return 0;
 }
