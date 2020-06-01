@@ -47,6 +47,7 @@
 	#include <string>
 	#include <stack>
 	#include <queue>
+	#include <cstring>
 	yy::parser::symbol_type yylex();
 	/* Define symbol table, global variables, list of keywords or functions that are needed here */
 	bool semantic_error = false; /* If semantic error is encountered, no intermediate code should be created and an error should print */
@@ -65,7 +66,7 @@
 	vector<string> label_table;
 	vector<string> ident_list;
 	vector<exp_struct> var_list;
-	queue<string> loop_labels;
+	queue<pair<string, string> > loop_labels;
 	vector<string> reserved_words{"function","beginparams","endparams","beginbody","endbody","beginlocals","endlocals","integer","if","then","else","endif","return","read","write","do","beginloop","while","and","or","not","continue","endloop","array","of","true","false"};
 	bool in_sym_table(string symbol); /* Check if the passed symbol is in the symbol table */
 	int find_symbol(string symbol);  /* Return the location of the passed symbol in the symbol table */
@@ -566,24 +567,9 @@ statements: statement SEMICOLON statements {
 		//$$.after = $3.after;
 		$$.begin = $1.begin;
 		$$.code = $1.code;
-		if ($1.has_continue) {
-			if ($3.after != "") {
-				$$.code += "\n";
-				$$.code += ":= " + $3.after + "\n";
-			}
-		}
 		if ($3.code != "") {
-			if (!$1.has_continue) {
-				$$.code += "\n" + $3.code;
-			}		
-			else {
-				$$.code += $3.code;
-			}
+			$$.code += "\n" + $3.code;
 			$$.after = $3.after;
-			if ($3.has_continue) {
-				$$.code += "\n";
-				$$.code += ":= " + $$.after;
-			}
 		}
 		else {
 			$$.after = $1.after;
@@ -649,14 +635,22 @@ statement: var ASSIGN expression {
 		$$.code += "?:= " + $4.begin + ", " + sym_table.at($2.place) + "\n";
 		$$.code += ":= " + $$.after + "\n";
 		$$.code += $4.code + "\n";
+		while ($$.code.find("_patch_label_\n") != string::npos) {
+			$$.code.replace($$.code.find("_patch_label_\n"), strlen("_patch_label_\n"), $$.after + "\n");
+		}
 		$$.code += ":= " + $$.begin + "\n";
 		$$.code += ": " + $$.after;
 	   }
 	   | DO BEGINLOOP statements ENDLOOP WHILE bool_expression {
 		$$.begin = newLabel();
 		$$.after = newLabel();
+		label = newLabel(); // To place before the bool_expression
 		$$.code = ": " + $$.begin + "\n";
 		$$.code += $3.code + "\n";
+		while ($$.code.find("_patch_label_\n") != string::npos) {
+			$$.code.replace($$.code.find("_patch_label_\n"), strlen("_patch_label_\n"), label + "\n");
+		}
+		$$.code += ": " + label + "\n";
 		$$.code += $6.code + "\n";
 		$$.code += "?:= " + $$.begin + ", " + sym_table.at($6.place) + "\n";
 		$$.code += ": " + $$.after;
@@ -762,7 +756,7 @@ statement: var ASSIGN expression {
 		$$.begin = newLabel();
 		$$.after = newLabel();
 		$$.code = ": " + $$.begin + "\n";
-		$$.has_continue = true;
+		$$.code += ":= _patch_label_\n";
 		$$.code += ": " + $$.after;
 	   }
 	   | RETURN expression {
