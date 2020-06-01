@@ -273,7 +273,7 @@ var: identifier {
 		semantic_error = true;
 	}
 	$$.place = find_symbol($1);
-	$$.code = "";
+	$$.code += $3.code;
 	$$.index = sym_table.at($3.place);
      }
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET {std::cout << "var -> identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET\n";}
@@ -311,10 +311,18 @@ term: SUB var {
       }
       | var {
 	temp = newTemp();
-	sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($1.place))->second));
+	sym_type.insert(pair<string, int>(temp, 0));
 	$$.place = find_symbol(temp);
-	$$.code = ". " + temp + "\n"; // Declare the new temp
-	$$.code += "= " + temp + ", " + sym_table.at($1.place);
+	if ($1.code != "") {
+		$$.code = $1.code + "\n";
+	}
+	$$.code += ". " + temp + "\n";
+	if (sym_type.find(sym_table.at($1.place))->second == 0) {
+		$$.code += "= " + temp + ", " + sym_table.at($1.place);
+	}
+	else {
+		$$.code += "=[] " + temp + ", " + sym_table.at($1.place) + ", " + $1.index;
+	}
       }
       | NUMBER {
 	temp = newTemp();
@@ -341,7 +349,8 @@ expressions: expression COMMA expressions {
 		temp = newTemp();
 		sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($1.place))->second));
 		$$.place = find_symbol(temp);
-		$$.code = $1.code + "\n" + $3.code;
+		$$.code = $1.code + "\n" + $3.code + "\n";
+		$$.code += ". " + temp;
 	     }
 	     | expression {$$.place = $1.place; $$.code = $1.code;}
 	     ;
@@ -492,6 +501,9 @@ statement: var ASSIGN expression {
 		$$.begin = newLabel();
 		$$.after = newLabel();
 		$$.code = ": " + $$.begin + "\n";
+		if($1.code != "") {
+			$$.code += $1.code + "\n";
+		}
 		$$.code += $3.code + "\n";
 		if (sym_type.find(sym_table.at($1.place))->second == 0) {	
 			if (sym_type.find(sym_table.at($3.place))->second == 1 || sym_type.find(sym_table.at($3.place))->second == 2) {
