@@ -35,6 +35,7 @@
 		string begin;
 		string after;
 		string code;
+		bool has_continue = false;
 	};
 }
 
@@ -63,7 +64,8 @@
 	map<string, int> sym_type; /* 0 = integer, 1 = 1-D array, 2 = 2-D array, 3 = function */
 	vector<string> label_table;
 	vector<string> ident_list;
-	vector<string> var_list;
+	vector<exp_struct> var_list;
+	queue<string> loop_labels;
 	vector<string> reserved_words{"function","beginparams","endparams","beginbody","endbody","beginlocals","endlocals","integer","if","then","else","endif","return","read","write","do","beginloop","while","and","or","not","continue","endloop","array","of","true","false"};
 	bool in_sym_table(string symbol); /* Check if the passed symbol is in the symbol table */
 	int find_symbol(string symbol);  /* Return the location of the passed symbol in the symbol table */
@@ -180,13 +182,13 @@ declarations: /* epsilon */ {$$.code = "";}
 	      ;
 declaration: identifiers COLON INTEGER {
 		// Variable declaration of type integer
-		for (int i = 0; i < ident_list.size(); ++i) {	
+		for (int i = ident_list.size() - 1; i >= 0; --i) {	
 			if (!in_sym_table(ident_list.at(i))) {
 				if (!in_reserved_words(ident_list.at(i))) {
 					sym_table.push_back(ident_list.at(i));
 					sym_type.insert(pair<string, int>(ident_list.at(i), 0));
 					$$.ids.push_back(ident_list.at(i));
-					if (i < ident_list.size() - 1) {
+					if (i > 0) {
 						$$.code += ". " + ident_list.at(i) + "\n"; // Code for an integer declaration
 					}
 					else {
@@ -207,13 +209,13 @@ declaration: identifiers COLON INTEGER {
 	     }
 	     | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {
 		// Variable declaration of a 1-D array 
-		for (int i = 0; i < ident_list.size(); ++i) {	
+		for (int i = ident_list.size() - 1; i >= 0; --i) {	
 			if (!in_sym_table(ident_list.at(i))) {
 				if (!in_reserved_words(ident_list.at(i))) {
 					sym_table.push_back(ident_list.at(i));
 					sym_type.insert(pair<string, int>(ident_list.at(i), 1));
 					$$.ids.push_back(ident_list.at(i));
-					if (i < ident_list.size() - 1) {
+					if (i > 0) {
 						$$.code += ".[] " + ident_list.at(i) + ", " + to_string($5) + "\n"; // Code for an integer declaration
 					}
 					else {
@@ -279,10 +281,12 @@ var: identifier {
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET {std::cout << "var -> identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET\n";}
      ;
 vars: var {
-	var_list.push_back(sym_table.at($1.place));
+	//var_list.push_back(sym_table.at($1.place));
+      	var_list.push_back($1);
       }
       | var COMMA vars {
-	var_list.push_back(sym_table.at($1.place));
+	//var_list.push_back(sym_table.at($1.place));
+      	var_list.push_back($1);
       }
       ;
 term: SUB var {
@@ -401,8 +405,20 @@ multiplicative_expression: term {$$.place = $1.place; $$.code = $1.code;}
 				$$.code += "% " + temp + ", " + sym_table.at($1.place) + ", " + sym_table.at($3.place);
 			   }
                            ;
-relation_expression: TRUE {std::cout << "relation_expression -> TRUE\n";}
- 		     | FALSE {std::cout << "relation_expression -> FALSE\n";}
+relation_expression: TRUE {
+			temp = newTemp();
+			sym_type.insert(pair<string, int>(temp, 0));
+			$$.place = find_symbol(temp);
+			$$.code = ". " + temp + "\n";
+			$$.code += "= " + temp + ", " + to_string(1);
+		     }
+ 		     | FALSE {
+			temp = newTemp();
+			sym_type.insert(pair<string, int>(temp, 0));
+			$$.place = find_symbol(temp);
+			$$.code = ". " + temp + "\n";
+			$$.code += "= " + temp + ", " + to_string(0);
+		     }
 		     | expression comp expression {
 			$$.code = $1.code + "\n";
 			$$.code += $3.code + "\n";
@@ -451,10 +467,77 @@ relation_expression: TRUE {std::cout << "relation_expression -> TRUE\n";}
 			$$.place = $2.place;
 			$$.code = $2.code;
 		     }
-                     | NOT TRUE {std::cout << "relation_expression -> NOT TRUE\n";}
-		     | NOT FALSE {std::cout << "relation_expression -> NOT FALSE\n";}
-		     | NOT expression comp expression {std::cout << "relation_expression -> NOT expression comp expression\n";}
-		     | NOT L_PAREN bool_expression R_PAREN {std::cout << "relation_expression -> NOT L_PAREN bool_expression R_PAREN\n";}
+                     | NOT TRUE {
+			temp = newTemp();
+			sym_type.insert(pair<string, int>(temp, 0));
+			$$.place = find_symbol(temp);
+			$$.code = ". " + temp + "\n";
+			$$.code = "= " + temp + ", " + to_string(0);
+		     }
+		     | NOT FALSE {
+			temp = newTemp();
+			sym_type.insert(pair<string, int>(temp, 0));
+			$$.place = find_symbol(temp);
+			$$.code = ". " + temp + "\n";
+			$$.code += "= " + temp + ", " + to_string(1);
+		     }
+		     | NOT expression comp expression {
+			$$.code = $2.code + "\n";
+			$$.code += $4.code + "\n";
+			texp1 = newTemp();
+			sym_type.insert(pair<string, int>(texp1, 0));
+			$$.code += ". " + texp1 + "\n";
+			if (sym_type.find(sym_table.at($2.place))->second == 1 || sym_type.find(sym_table.at($2.place))->second == 2) {
+				$$.code += "=[] " + texp1 + ", " + sym_table.at($2.place) + ", " + $2.index + "\n";
+			}
+			else {
+				$$.code += "= " + texp1 + ", " + sym_table.at($2.place) + "\n";
+			}
+			texp2 = newTemp();
+			sym_type.insert(pair<string, int>(texp2, 0));				
+			$$.code += ". " + texp2 + "\n";
+			if (sym_type.find(sym_table.at($4.place))->second == 1 || sym_type.find(sym_table.at($4.place))->second == 2) {
+				$$.code += "=[] " + texp2 + ", " + sym_table.at($4.place) + ", " + $4.index + "\n";
+			}
+			else {
+				$$.code += "= " + texp2 + ", " + sym_table.at($4.place) + "\n";
+			}
+			temp = newTemp();
+			sym_type.insert(pair<string, int>(temp, 0));
+			$$.place = find_symbol(temp);
+			$$.code += ". " + temp + "\n";
+			if ($3 == "<") {
+				$$.code += "< " + temp + ", " + texp1 + ", " + texp2;
+			}
+			else if ($3 == "<=") {			
+				$$.code += "<= " + temp + ", " + texp1 + ", " + texp2;
+			}
+			else if ($3 == "!=") {
+				$$.code += "!= " + temp + ", " + texp1 + ", " + texp2;
+			}
+			else if ($3 == "==") {
+				$$.code += "== " + temp + ", " + texp1 + ", " + texp2;
+			}
+			else if ($3 == ">=") {
+				$$.code += ">= " + temp + ", " + texp1 + ", " + texp2;
+			}
+			else {
+				$$.code += "> " + temp + ", " + texp1 + ", " + texp2;
+			}
+			temp = newTemp();
+			sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($$.place))->second));
+			$$.code += ". " + temp + "\n";
+			$$.code += "! " + temp + ", " + sym_table.at($$.place);
+			$$.place = find_symbol(temp);
+		     }
+		     | NOT L_PAREN bool_expression R_PAREN {
+			temp = newTemp();
+			sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($3.place))->second));
+			$$.place = find_symbol(temp);
+			$$.code = $3.code + "\n";
+			$$.code += ". " + temp + "\n";
+			$$.code += "! " + temp + ", " + sym_table.at($3.place);
+		     }
 		     ;
 relation_and_expression: relation_expression {$$.place = $1.place; $$.code = $1.code;}
 			 | relation_expression AND relation_and_expression {
@@ -463,7 +546,7 @@ relation_and_expression: relation_expression {$$.place = $1.place; $$.code = $1.
 				sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($1.place))->second));
 				$$.code = $1.code + "\n";
 				$$.code += $3.code + "\n";
-				$$.code += ". " + temp; // Declare the new temp
+				$$.code += ". " + temp + "\n"; // Declare the new temp
 				$$.code += "&& " + temp + "," + sym_table.at($1.place) + "," + sym_table.at($3.place); // Assign the value to the new temp
 			 }
 			 ;
@@ -474,7 +557,7 @@ bool_expression: relation_and_expression {$$.place = $1.place; $$.code = $1.code
 			sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($1.place))->second));
 			$$.code = $1.code + "\n";
 			$$.code += $3.code + "\n";
-			$$.code += ". " + temp; // Declare the new temp
+			$$.code += ". " + temp + "\n"; // Declare the new temp
 			$$.code += "|| " + temp + "," + sym_table.at($1.place) + "," + sym_table.at($3.place); // Assign the value to the new temp
 		 }
 		 ;
@@ -483,18 +566,30 @@ statements: statement SEMICOLON statements {
 		//$$.after = $3.after;
 		$$.begin = $1.begin;
 		$$.code = $1.code;
+		if ($1.has_continue) {
+			if ($3.after != "") {
+				$$.code += "\n";
+				$$.code += ":= " + $3.after + "\n";
+			}
+		}
 		if ($3.code != "") {
-			$$.code += "\n" + $3.code;
+			if (!$1.has_continue) {
+				$$.code += "\n" + $3.code;
+			}		
+			else {
+				$$.code += $3.code;
+			}
 			$$.after = $3.after;
+			if ($3.has_continue) {
+				$$.code += "\n";
+				$$.code += ":= " + $$.after;
+			}
 		}
 		else {
 			$$.after = $1.after;
 		}
 	    }
 	    | /* epsilon */ {
-	    	$$.begin = "";
-		$$.after = "";
-		$$.code = "";
 	    }
 	    ;
 statement: var ASSIGN expression {
@@ -557,23 +652,82 @@ statement: var ASSIGN expression {
 		$$.code += ":= " + $$.begin + "\n";
 		$$.code += ": " + $$.after;
 	   }
-	   | DO BEGINLOOP statements ENDLOOP WHILE bool_expression {std::cout << "statement -> DO BEGINLOOP statements ENDLOOP WHILE bool_expression\n";}
-	   | FOR var ASSIGN NUMBER SEMICOLON bool_expression SEMICOLON var ASSIGN expression BEGINLOOP statements ENDLOOP {std::cout << "FOR var ASSIGN NUMBER SEMICOLON bool_expression SEMICOLON var ASSIGN expression BEGINLOOP statements ENDLOOP\n";}
+	   | DO BEGINLOOP statements ENDLOOP WHILE bool_expression {
+		$$.begin = newLabel();
+		$$.after = newLabel();
+		$$.code = ": " + $$.begin + "\n";
+		$$.code += $3.code + "\n";
+		$$.code += $6.code + "\n";
+		$$.code += "?:= " + $$.begin + ", " + sym_table.at($6.place) + "\n";
+		$$.code += ": " + $$.after;
+	   }
+	   | FOR var ASSIGN NUMBER SEMICOLON bool_expression SEMICOLON var ASSIGN expression BEGINLOOP statements ENDLOOP {
+		$$.begin = newLabel();
+		$$.after = newLabel();
+		$$.code = ": " + $$.begin + "\n";
+		// var ASSIGN NUMBER code
+		if($2.code != "") {
+			$$.code += $2.code + "\n";
+		}
+		if (sym_type.find(sym_table.at($2.place))->second == 0) {	
+			// Assigning somethng of the form x = y
+			$$.code += "= " + sym_table.at($2.place) + "," + to_string($4) + "\n";
+		}
+		else if (sym_type.find(sym_table.at($2.place))->second == 1 || sym_type.find(sym_table.at($2.place))->second == 2) {
+			// Assigning something of the form a[i] = x	
+			$$.code += "[]= " + sym_table.at($2.place) + ", " + $2.index + ", " + to_string($4) + "\n";
+		}
+		else {
+			yy::parser::syntax_error(@1, "Invalid assignment statement");
+			semantic_error = true;
+		}
+		// code for bool expression
+		$$.code += $6.code + "\n";
+		$$.code += "?:= " + $12.begin + ", " + sym_table.at($6.place) + "\n";
+		$$.code += ":= " + $$.after + "\n";
+		// code for var ASSIGN expression
+		if($8.code != "") {
+			$$.code += $8.code + "\n";
+		}
+		$$.code += $10.code + "\n";
+		if (sym_type.find(sym_table.at($8.place))->second == 0) {	
+			if (sym_type.find(sym_table.at($10.place))->second == 1 || sym_type.find(sym_table.at($10.place))->second == 2) {
+				// Assigning something of the form x = a[i]
+				$$.code = "=[] " + sym_table.at($8.place) + ", " + sym_table.at($10.place) + ", " + $10.index + "\n";
+			}
+			else {
+				// Assigning somethng of the form x = y
+				$$.code += "= " + sym_table.at($8.place) + "," + sym_table.at($10.place) + "\n";
+			}
+		}
+		else if (sym_type.find(sym_table.at($8.place))->second == 1 || sym_type.find(sym_table.at($8.place))->second == 2) {
+			// Assigning something of the form a[i] = x	
+			$$.code += "[]= " + sym_table.at($8.place) + ", " + $8.index + ", " + sym_table.at($10.place) + "\n";
+		}
+		else {
+			yy::parser::syntax_error(@1, "Invalid assignment statement");
+			semantic_error = true;
+		}
+		$$.code += ": " + $$.after;
+	   }
 	   | READ vars {
 		$$.begin = newLabel();
 		$$.after = newLabel();
 		$$.code = ": " + $$.begin + "\n";
-		for (int i = 0; i < var_list.size(); ++i) {
-			if (in_sym_table(var_list.at(i))) {
-				if (sym_type.find(var_list.at(i))->second == 0) {
-					$$.code += ".< " + var_list.at(i) + "\n";
+		for (int i = var_list.size() - 1; i >= 0; --i) {
+			if (in_sym_table(sym_table.at(var_list.at(i).place))) {
+				if (var_list.at(i).code != "") {
+					$$.code += var_list.at(i).code + "\n";
 				}
-				else if (sym_type.find(var_list.at(i))->second == 1) {
-					$$.code += ".[]< " + var_list.at(i) + "\n";
+				if (sym_type.find(sym_table.at(var_list.at(i).place))->second == 0) {
+					$$.code += ".< " + sym_table.at(var_list.at(i).place) + "\n";
+				}
+				else if (sym_type.find(sym_table.at(var_list.at(i).place))->second == 1) {
+					$$.code += ".[]< " + sym_table.at(var_list.at(i).place) + ", " + var_list.at(i).index + "\n";
 				}
 			}	
 			else {
-				yy::parser::syntax_error(@2, "variable " + ident_list.at(i) + " not declared");
+				yy::parser::syntax_error(@2, "variable " + sym_table.at(var_list.at(i).place) + " not declared");
 				semantic_error = true;
 			}	
 		}
@@ -584,13 +738,16 @@ statement: var ASSIGN expression {
 		$$.begin = newLabel();
 		$$.after = newLabel();
 		$$.code = ": " + $$.begin + "\n";
-		for (int i = 0; i < var_list.size(); ++i) {
-			if (in_sym_table(var_list.at(i))) {
-				if (sym_type.find(var_list.at(i))->second == 0) {
-					$$.code += ".> " + var_list.at(i) + "\n";
+		for (int i = var_list.size() - 1; i>= 0; --i) {
+			if (in_sym_table(sym_table.at(var_list.at(i).place))) {
+				if (var_list.at(i).code != "") {
+					$$.code += var_list.at(i).code + "\n";
 				}
-				else if (sym_type.find(var_list.at(i))->second == 1) {
-					$$.code += ".[]> " + var_list.at(i) + "\n";
+				if (sym_type.find(sym_table.at(var_list.at(i).place))->second == 0) {
+					$$.code += ".> " + sym_table.at(var_list.at(i).place) + "\n";
+				}
+				else if (sym_type.find(sym_table.at(var_list.at(i).place))->second == 1) {
+					$$.code += ".[]> " + sym_table.at(var_list.at(i).place) + ", " + var_list.at(i).index + "\n";
 				}
 			}	
 			else {
@@ -602,7 +759,11 @@ statement: var ASSIGN expression {
 		var_list.clear();	
 	   }
 	   | CONTINUE {
-		
+		$$.begin = newLabel();
+		$$.after = newLabel();
+		$$.code = ": " + $$.begin + "\n";
+		$$.has_continue = true;
+		$$.code += ": " + $$.after;
 	   }
 	   | RETURN expression {
 		$$.begin = newLabel();
