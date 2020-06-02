@@ -36,6 +36,7 @@
 		string after;
 		string code;
 		bool has_continue = false;
+		bool has_loop = false;
 	};
 }
 
@@ -130,12 +131,12 @@ function: FUNCTION identifier SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGIN
 				function_list.push_back($2);
 			}
 			else {
-				yy::parser::syntax_error(@2, "Declaration of function using reserved word");
+				std::cerr << "Error line " << @2 << ": Declaration of function using reserved word" << endl;
 				semantic_error = true;
 			}
 		}
 		else {
-			yy::parser::syntax_error(@2, "Redeclaration of identifier " + $2 + " as a function");
+			std::cerr << "Error line " << @2 <<  ": Redeclaration of identifier " + $2 + " as a function" << endl;
 			semantic_error = true;
 		}
 		$$ = "func " + $2 + "\n";
@@ -157,6 +158,10 @@ function: FUNCTION identifier SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGIN
 			$$ += $8.code + "\n";
 		}
 		if ($11.code != "") {
+			if ($11.has_continue && !$11.has_loop) {
+				std::cerr << "Error line " << @11 << ": Use of continue outside a loop" << endl;
+				semantic_error = true;
+			}
 			$$ += $11.code + "\n";
 		}
 		$$ += "endfunc";
@@ -189,11 +194,6 @@ declarations: /* epsilon */ {$$.code = "";}
 		if ($3.code != "") {
 			$$.code += "\n" + $3.code;
 		}
-		//FIXME
-		cout << "Successfully declared:" << endl;
-		for (int i = 0; i < sym_table.size(); ++i) {
-			cout << "Variable: " << sym_table.at(i) << " type: " << sym_type.find(sym_table.at(i))->second << endl;
-		}
 	      }
 	      ;
 declaration: identifiers COLON INTEGER {
@@ -212,12 +212,12 @@ declaration: identifiers COLON INTEGER {
 					}
 				}
 				else {
-					yy::parser::syntax_error(@1, "Declaration of variable with same name as a reserved word");
+					std::cerr << "Error line " << @1 << ": Declaration of variable with same name as a reserved word" << endl;
 					semantic_error = true;
 				}
 			}
 			else {
-				yy::parser::syntax_error(@1, "Redeclaration of variable " + ident_list.at(i));
+				std::cerr << "Error line " << @1 << ": Redeclaration of variable " + ident_list.at(i) << endl;
 				semantic_error = true;	
 			}
 		}
@@ -239,17 +239,21 @@ declaration: identifiers COLON INTEGER {
 					}
 				}
 				else {
-					yy::parser::syntax_error(@1, "Declaration of variable with same name as a reserved word");
+					std::cerr << "Error line " << @1 <<  ": Declaration of variable with same name as a reserved word" << endl;
 					semantic_error = true;
 				}
 			}
 			else {
 				cout << "Trying to redeclare variable " << ident_list.at(i) << " of type " << sym_type.find(ident_list.at(i))->second << endl;
-				yy::parser::syntax_error(@1, "Redeclaration of variable " + ident_list.at(i));
+				std::cerr << "Error line " << @1 << ": Redeclaration of variable " + ident_list.at(i) << endl;
 				semantic_error = true;	
 			}
 		}
 		ident_list.clear(); 
+	     }
+	     | identifiers COLON ARRAY L_SQUARE_BRACKET SUB NUMBER R_SQUARE_BRACKET OF INTEGER {
+		std::cerr << "Error line " << @1 << ": Declaration of array with a negative number for an index" << endl;
+		semantic_error = true;
 	     }
              | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {
 		//Variable declaration of a 2-D array
@@ -274,25 +278,29 @@ comp: EQ {$$ = $1;}
       ;
 var: identifier {
 	if (!in_sym_table($1)) {
-		cout << "Failing in var -> identifier on ident " << $1 << endl;
-		yy::parser::syntax_error(@1, "Variable " + $1 + " not declared");
+		std::cerr << "Error line " << @1 << ": Variable " + $1 + " not declared" << endl;
 		semantic_error = true;	
 	}
 	else {
-		$$.place = find_symbol($1);
-		$$.code = "";
+		if (sym_type.find($1)->second == 1 || sym_type.find($1)->second == 2) {
+			std::cerr << "Error line " << @1 << ": Using array variable " + $1 + " without an index" << endl;
+			semantic_error = true;
+		}
+		else {
+			$$.place = find_symbol($1);
+			$$.code = "";
+		}
 	}
      }
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET {
 	// Ensure the identifier is in the symbol table
 	if (!in_sym_table($1)) {
-		yy::parser::syntax_error(@1, "Variable " + $1 + " not declared");
+		std::cerr << "Error line " << @1 << ": Variable " + $1 + " not declared" << endl;
 		semantic_error = true;
 	}
 	// Ensure the identifier has been declared as an array
 	if (sym_type.find($1)->second == 0 || sym_type.find($1)->second == 3) {
-		cout << "The identifier " << $1 << " has the wrong type, has type "<< sym_type.find($1)->second << endl;
-		yy::parser::syntax_error(@1, "Attempting to access variable not declared as an array");
+		std::cerr << "Error line " << @1 << ": Attempting to access variable not declared as an array" << endl;
 		semantic_error = true;
 	}
 	else {
@@ -308,9 +316,6 @@ vars: var {
 	if (in_sym_table(sym_table.at($1.place))) {
 		var_list.push_back($1);
 	}
-	else {
-		cout << "Failing in vars -> var" << endl;
-      	}
       }
       | var COMMA vars {
 	//var_list.push_back(sym_table.at($1.place));
@@ -342,18 +347,20 @@ term: SUB var {
 	$$.code += "- " + temp + ", " + to_string(0) + ", " + sym_table.at($3.place);
       }
       | var {
-	temp = newTemp();
-	sym_type.insert(pair<string, int>(temp, 0));
-	$$.place = find_symbol(temp);
-	if ($1.code != "") {
-		$$.code = $1.code + "\n";
-	}
-	$$.code += ". " + temp + "\n";
-	if (sym_type.find(sym_table.at($1.place))->second == 0) {
-		$$.code += "= " + temp + ", " + sym_table.at($1.place);
-	}
-	else {
-		$$.code += "=[] " + temp + ", " + sym_table.at($1.place) + ", " + $1.index;
+	if (!semantic_error) {
+		temp = newTemp();
+		sym_type.insert(pair<string, int>(temp, 0));
+		$$.place = find_symbol(temp);
+		if ($1.code != "") {
+			$$.code = $1.code + "\n";
+		}
+		$$.code += ". " + temp + "\n";
+		if (sym_type.find(sym_table.at($1.place))->second == 0) {
+			$$.code += "= " + temp + ", " + sym_table.at($1.place);
+		}
+		else {
+			$$.code += "=[] " + temp + ", " + sym_table.at($1.place) + ", " + $1.index;
+		}
 	}
       }
       | NUMBER {
@@ -391,20 +398,24 @@ expression: multiplicative_expression {
 		$$.code = $1.code;
 	    }
             | multiplicative_expression ADD expression {
-		temp = newTemp();
-		sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($3.place))->second));
-		$$.place = find_symbol(temp);
-		$$.code = $1.code + "\n" + $3.code + "\n";
-		$$.code += ". " + temp + "\n";
-		$$.code += "+ " + temp + ", " + sym_table.at($1.place) + ", " + sym_table.at($3.place);
+		if (!semantic_error) {
+			temp = newTemp();
+			sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($3.place))->second));
+			$$.place = find_symbol(temp);
+			$$.code = $1.code + "\n" + $3.code + "\n";
+			$$.code += ". " + temp + "\n";
+			$$.code += "+ " + temp + ", " + sym_table.at($1.place) + ", " + sym_table.at($3.place);
+	    	}
 	    }
 	    | multiplicative_expression SUB expression {
-		temp = newTemp();
-		sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($3.place))->second));
-		$$.place = find_symbol(temp);
-		$$.code = $1.code + "\n" + $3.code + "\n";
-		$$.code += ". " + temp + "\n";
-		$$.code += "- " + temp + ", " + sym_table.at($1.place) + ", " + sym_table.at($3.place);
+		if (!semantic_error) {
+			temp = newTemp();
+			sym_type.insert(pair<string, int>(temp, sym_type.find(sym_table.at($3.place))->second));
+			$$.place = find_symbol(temp);
+			$$.code = $1.code + "\n" + $3.code + "\n";
+			$$.code += ". " + temp + "\n";
+			$$.code += "- " + temp + ", " + sym_table.at($1.place) + ", " + sym_table.at($3.place);
+	    	}
 	    }
 	    ;
 multiplicative_expression: term {$$.place = $1.place; $$.code = $1.code;}
@@ -601,37 +612,47 @@ statements: statement SEMICOLON statements {
 		else {
 			$$.after = $1.after;
 		}
+		if ($1.has_continue)
+		  $$.has_continue = true;
+		else if ($3.has_continue)
+		  $$.has_continue = true;
+		if ($1.has_loop)
+		  $$.has_loop = true;
+		else if ($3.has_loop)
+		  $$.has_loop = true;
 	    }
 	    | /* epsilon */ {
 	    }
 	    ;
 statement: var ASSIGN expression {
-		$$.begin = newLabel();
-		$$.after = newLabel();
-		$$.code = ": " + $$.begin + "\n";
-		if($1.code != "") {
-			$$.code += $1.code + "\n";
-		}
-		$$.code += $3.code + "\n";
-		if (sym_type.find(sym_table.at($1.place))->second == 0) {	
-			if (sym_type.find(sym_table.at($3.place))->second == 1 || sym_type.find(sym_table.at($3.place))->second == 2) {
-				// Assigning something of the form x = a[i]
-				$$.code = "=[] " + sym_table.at($1.place) + ", " + sym_table.at($3.place) + ", " + $3.index + "\n";
+		if (!semantic_error) {
+			$$.begin = newLabel();
+			$$.after = newLabel();
+			$$.code = ": " + $$.begin + "\n";
+			if($1.code != "") {
+				$$.code += $1.code + "\n";
+			}
+			$$.code += $3.code + "\n";
+			if (sym_type.find(sym_table.at($1.place))->second == 0) {	
+				if (sym_type.find(sym_table.at($3.place))->second == 1 || sym_type.find(sym_table.at($3.place))->second == 2) {
+					// Assigning something of the form x = a[i]
+					$$.code = "=[] " + sym_table.at($1.place) + ", " + sym_table.at($3.place) + ", " + $3.index + "\n";
+				}
+				else {
+					// Assigning somethng of the form x = y
+					$$.code += "= " + sym_table.at($1.place) + "," + sym_table.at($3.place) + "\n";
+				}
+			}
+			else if (sym_type.find(sym_table.at($1.place))->second == 1 || sym_type.find(sym_table.at($1.place))->second == 2) {
+				// Assigning something of the form a[i] = x	
+				$$.code += "[]= " + sym_table.at($1.place) + ", " + $1.index + ", " + sym_table.at($3.place) + "\n";
 			}
 			else {
-				// Assigning somethng of the form x = y
-				$$.code += "= " + sym_table.at($1.place) + "," + sym_table.at($3.place) + "\n";
+				std::cerr << "Error line " << @1 << ": Invalid assignment statement" << endl;
+				semantic_error = true;
 			}
-		}
-		else if (sym_type.find(sym_table.at($1.place))->second == 1 || sym_type.find(sym_table.at($1.place))->second == 2) {
-			// Assigning something of the form a[i] = x	
-			$$.code += "[]= " + sym_table.at($1.place) + ", " + $1.index + ", " + sym_table.at($3.place) + "\n";
-		}
-		else {
-			yy::parser::syntax_error(@1, "Invalid assignment statement");
-			semantic_error = true;
-		}
-		$$.code += ": " + $$.after;
+			$$.code += ": " + $$.after;
+	   	}
 	   }
 	   | IF bool_expression THEN statements ENDIF {
 		$$.begin = newLabel();
@@ -667,6 +688,7 @@ statement: var ASSIGN expression {
 		}
 		$$.code += ":= " + $$.begin + "\n";
 		$$.code += ": " + $$.after;
+		$$.has_loop = true;
 	   }
 	   | DO BEGINLOOP statements ENDLOOP WHILE bool_expression {
 		$$.begin = newLabel();
@@ -681,6 +703,7 @@ statement: var ASSIGN expression {
 		$$.code += $6.code + "\n";
 		$$.code += "?:= " + $$.begin + ", " + sym_table.at($6.place) + "\n";
 		$$.code += ": " + $$.after;
+		$$.has_loop = true;
 	   }
 	   | FOR var ASSIGN NUMBER SEMICOLON bool_expression SEMICOLON var ASSIGN expression BEGINLOOP statements ENDLOOP {
 		$$.begin = newLabel();
@@ -699,7 +722,7 @@ statement: var ASSIGN expression {
 			$$.code += "[]= " + sym_table.at($2.place) + ", " + $2.index + ", " + to_string($4) + "\n";
 		}
 		else {
-			yy::parser::syntax_error(@1, "Invalid assignment statement");
+			std::cerr << "Error line " << @1 << ": Invalid assignment statement" << endl;
 			semantic_error = true;
 		}
 		// code for bool expression
@@ -726,10 +749,11 @@ statement: var ASSIGN expression {
 			$$.code += "[]= " + sym_table.at($8.place) + ", " + $8.index + ", " + sym_table.at($10.place) + "\n";
 		}
 		else {
-			yy::parser::syntax_error(@1, "Invalid assignment statement");
+			std::cerr << "Error line " << @1 << ": Invalid assignment statement" << endl;
 			semantic_error = true;
 		}
 		$$.code += ": " + $$.after;
+		$$.has_loop = true;
 	   }
 	   | READ vars {
 		$$.begin = newLabel();
@@ -748,7 +772,7 @@ statement: var ASSIGN expression {
 				}
 			}	
 			else {
-				yy::parser::syntax_error(@2, "variable " + sym_table.at(var_list.at(i).place) + " not declared");
+				std::cerr << "Error line " << @2 <<  ": Variable " + sym_table.at(var_list.at(i).place) + " not declared" << endl;
 				semantic_error = true;
 			}	
 		}
@@ -772,7 +796,7 @@ statement: var ASSIGN expression {
 				}
 			}	
 			else {
-				yy::parser::syntax_error(@2, "variable " + ident_list.at(i) + " not declared");
+				std::cerr << "Error line " << @2 << ": variable " + ident_list.at(i) + " not declared" << endl;
 				semantic_error = true;
 			}	
 		}
@@ -785,6 +809,7 @@ statement: var ASSIGN expression {
 		$$.code = ": " + $$.begin + "\n";
 		$$.code += ":= _patch_label_\n";
 		$$.code += ": " + $$.after;
+		$$.has_continue = true;
 	   }
 	   | RETURN expression {
 		$$.begin = newLabel();
