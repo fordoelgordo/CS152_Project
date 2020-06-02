@@ -112,6 +112,7 @@ program_start: functions {
 				}
 			}
 			if (!has_main) {
+				std::cerr << "Error: program does not contain a main function" << endl;
 				semantic_error = true;
 			}				
 			if (!semantic_error) {
@@ -273,17 +274,37 @@ declaration: identifiers COLON INTEGER {
 	     }
              | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {
 		//Variable declaration of a 2-D array
-		/*
-		if (!in_sym_table($1)) {
-			sym_table.push_back($1);
-			sym_type.insert(pair<string, int>($1, 2));
-		}
-		else {
-			std::cerr << "Error: redeclaration of variable " << $1 << std::endl;
-			semantic_error = true;
-		}	
-		*/
-	     }
+	     	for (int i = ident_list.size() - 1; i >= 0; --i) {
+			if (!in_sym_table(ident_list.at(i))) {
+				if (!in_reserved_words(ident_list.at(i))) {
+					sym_table.push_back(ident_list.at(i));
+					sym_type.insert(pair<string, int>(ident_list.at(i), 2));
+					temp = ident_list.at(i) + "_t";
+					sym_type.insert(pair<string, int>(temp, 2));
+					if (i > 0) {
+						$$.code += ".[] " + ident_list.at(i) + ", " + to_string($5) + "\n";
+	 					$$.code += ".[] " + temp + ", " + to_string($8) + "\n";
+	     				}
+					else {
+						$$.code += ".[] " + ident_list.at(i) + ", " + to_string($5) + "\n";
+						$$.code += ".[] " + temp + ", " + to_string($8);
+					}
+				}
+				else {
+					ss << @1;
+					std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Declaration of variable with same name as a reserved word" << endl;
+					semantic_error = true;
+					ss.str(std::string());
+				}
+			}
+			else {
+				ss << @1;
+				std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Redeclaration of variable " + ident_list.at(i) << endl;
+				semantic_error = true;
+				ss.str(std::string());
+			}
+	     	}
+	     }	
 	     ;
 comp: EQ {$$ = $1;}
       | NEQ {$$ = $1;}
@@ -302,7 +323,7 @@ var: identifier {
 	else {
 		if (sym_type.find($1)->second == 1 || sym_type.find($1)->second == 2) {
 			ss << @1;
-			std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Using array variable " + $1 + " without an index" << endl;
+			std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Using array variable \"" + $1 +  + "\" without an index" << endl;
 			semantic_error = true;
 			ss.str(std::string());
 		}
@@ -333,7 +354,28 @@ var: identifier {
 		$$.index = sym_table.at($3.place);
 	}
      }
-     | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET {std::cout << "var -> identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET\n";}
+     | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET L_SQUARE_BRACKET expression R_SQUARE_BRACKET {	
+	// Ensure the identifier is in the symbol table
+	if (!in_sym_table($1)) {
+		ss << @1;
+		std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Variable " + $1 + " not declared" << endl;
+		semantic_error = true;
+		ss.str(std::string());
+	}
+	// Ensure the identifier has been declared as an array
+	if (sym_type.find($1)->second == 0 || sym_type.find($1)->second == 3) {
+		ss << @1;
+		std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Attempting to access variable not declared as an array" << endl;
+		semantic_error = true;
+		ss.str(std::string());
+	}
+	else {
+		$$.place = find_symbol($1);
+		$$.code += $3.code;
+		$$.code += $6.code;
+		$$.index = sym_table.at($3.place);
+	}
+     }
      ;
 vars: var {
 	//var_list.push_back(sym_table.at($1.place));
