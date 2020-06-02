@@ -88,9 +88,9 @@ loc.step();
 ##[^\n]*		{/* Ignore comments and tabs on the current line */} 
 {IDENTIFIER}	 	{return yy::parser::make_IDENT(yytext, loc);}
 {DIGIT}+		{return yy::parser::make_NUMBER(std::stoi(yytext), loc);}
-[ \t]+			{/* Ignore spaces and tabs on current line */ }
-"\n"			{/* Don't have a purpose in the programming language */}
-"\r"			{/* Don't have a purpose in the programming language */}
+[ \t]+			{/* Ignore spaces and tabs on current line */ loc.step(); }
+"\n"			{/* Don't have a purpose in the programming language */loc.lines();}
+"\r"			{/* Don't have a purpose in the programming language */loc.lines();}
 {ERROR_IDENTIFIER_DIGIT_UNDERSCORE_START}  {std::cerr << loc << ": identifier \"" << yytext << "\" must begin with a letter" << std::endl; exit(1);}
 {ERROR_IDENTIFIER_UNDERSCORE_END} 	   {std::cerr << loc << ": identifier \"" << yytext << "\" cannot end with an underscore " << std::endl; exit(1);}
 "="					   {/* = not technically a valid token */} 

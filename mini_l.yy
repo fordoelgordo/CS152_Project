@@ -37,6 +37,7 @@
 		string code;
 		bool has_continue = false;
 		bool has_loop = false;
+		string loc;
 	};
 }
 
@@ -49,6 +50,7 @@
 	#include <stack>
 	#include <queue>
 	#include <cstring>
+	#include <sstream>
 	yy::parser::symbol_type yylex();
 	/* Define symbol table, global variables, list of keywords or functions that are needed here */
 	bool semantic_error = false; /* If semantic error is encountered, no intermediate code should be created and an error should print */
@@ -75,6 +77,7 @@
 	bool in_label_table(string label);
 	bool in_reserved_words(string word);
 	bool has_main = false;
+	stringstream ss;
 }
 
 %token END 0 "end of file";
@@ -131,13 +134,17 @@ function: FUNCTION identifier SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGIN
 				function_list.push_back($2);
 			}
 			else {
-				std::cerr << "Error line " << @2 << ": Declaration of function using reserved word" << endl;
+				ss << @2;
+				std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Declaration of function using reserved word" << endl;
 				semantic_error = true;
+				ss.str(std::string());
 			}
 		}
 		else {
-			std::cerr << "Error line " << @2 <<  ": Redeclaration of identifier " + $2 + " as a function" << endl;
+			ss << @2;
+			std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) <<  ": Redeclaration of identifier " + $2 + " as a function" << endl;
 			semantic_error = true;
+			ss.str(std::string());
 		}
 		$$ = "func " + $2 + "\n";
 		if ($5.code != "") {
@@ -159,7 +166,7 @@ function: FUNCTION identifier SEMICOLON BEGINPARAMS declarations ENDPARAMS BEGIN
 		}
 		if ($11.code != "") {
 			if ($11.has_continue && !$11.has_loop) {
-				std::cerr << "Error line " << @11 << ": Use of continue outside a loop" << endl;
+				std::cerr << "Error line " << $11.loc << ": Use of continue outside a loop" << endl;
 				semantic_error = true;
 			}
 			$$ += $11.code + "\n";
@@ -212,13 +219,17 @@ declaration: identifiers COLON INTEGER {
 					}
 				}
 				else {
-					std::cerr << "Error line " << @1 << ": Declaration of variable with same name as a reserved word" << endl;
+					ss << @1;
+					std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Declaration of variable with same name as a reserved word" << endl;
 					semantic_error = true;
+					ss.str(std::string());
 				}
 			}
 			else {
-				std::cerr << "Error line " << @1 << ": Redeclaration of variable " + ident_list.at(i) << endl;
+				ss << @1;
+				std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Redeclaration of variable " + ident_list.at(i) << endl;
 				semantic_error = true;	
+				ss.str(std::string());
 			}
 		}
 		ident_list.clear(); 
@@ -239,21 +250,26 @@ declaration: identifiers COLON INTEGER {
 					}
 				}
 				else {
-					std::cerr << "Error line " << @1 <<  ": Declaration of variable with same name as a reserved word" << endl;
+					ss << @1;
+					std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) <<  ": Declaration of variable with same name as a reserved word" << endl;
 					semantic_error = true;
+					ss.str(std::string());
 				}
 			}
 			else {
-				cout << "Trying to redeclare variable " << ident_list.at(i) << " of type " << sym_type.find(ident_list.at(i))->second << endl;
-				std::cerr << "Error line " << @1 << ": Redeclaration of variable " + ident_list.at(i) << endl;
+				ss << @1;
+				std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Redeclaration of variable " + ident_list.at(i) << endl;
 				semantic_error = true;	
+				ss.str(std::string());
 			}
 		}
 		ident_list.clear(); 
 	     }
 	     | identifiers COLON ARRAY L_SQUARE_BRACKET SUB NUMBER R_SQUARE_BRACKET OF INTEGER {
-		std::cerr << "Error line " << @1 << ": Declaration of array with a negative number for an index" << endl;
+		ss << @1;
+		std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Declaration of array with a negative number for an index" << endl;
 		semantic_error = true;
+		ss.str(std::string());
 	     }
              | identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER {
 		//Variable declaration of a 2-D array
@@ -278,13 +294,17 @@ comp: EQ {$$ = $1;}
       ;
 var: identifier {
 	if (!in_sym_table($1)) {
-		std::cerr << "Error line " << @1 << ": Variable " + $1 + " not declared" << endl;
+		ss << @1;
+		std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Variable " + $1 + " not declared" << endl;
 		semantic_error = true;	
+		ss.str(std::string());
 	}
 	else {
 		if (sym_type.find($1)->second == 1 || sym_type.find($1)->second == 2) {
-			std::cerr << "Error line " << @1 << ": Using array variable " + $1 + " without an index" << endl;
+			ss << @1;
+			std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Using array variable " + $1 + " without an index" << endl;
 			semantic_error = true;
+			ss.str(std::string());
 		}
 		else {
 			$$.place = find_symbol($1);
@@ -295,13 +315,17 @@ var: identifier {
      | identifier L_SQUARE_BRACKET expression R_SQUARE_BRACKET {
 	// Ensure the identifier is in the symbol table
 	if (!in_sym_table($1)) {
-		std::cerr << "Error line " << @1 << ": Variable " + $1 + " not declared" << endl;
+		ss << @1;
+		std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Variable " + $1 + " not declared" << endl;
 		semantic_error = true;
+		ss.str(std::string());
 	}
 	// Ensure the identifier has been declared as an array
 	if (sym_type.find($1)->second == 0 || sym_type.find($1)->second == 3) {
-		std::cerr << "Error line " << @1 << ": Attempting to access variable not declared as an array" << endl;
+		ss << @1;
+		std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Attempting to access variable not declared as an array" << endl;
 		semantic_error = true;
+		ss.str(std::string());
 	}
 	else {
 		$$.place = find_symbol($1);
@@ -620,6 +644,10 @@ statements: statement SEMICOLON statements {
 		  $$.has_loop = true;
 		else if ($3.has_loop)
 		  $$.has_loop = true;
+		if ($1.loc != "")
+		  $$.loc = $1.loc;
+		else if ($3.loc != "")
+		  $$.loc = $3.loc;
 	    }
 	    | /* epsilon */ {
 	    }
@@ -648,8 +676,10 @@ statement: var ASSIGN expression {
 				$$.code += "[]= " + sym_table.at($1.place) + ", " + $1.index + ", " + sym_table.at($3.place) + "\n";
 			}
 			else {
-				std::cerr << "Error line " << @1 << ": Invalid assignment statement" << endl;
+				ss << @1;
+				std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Invalid assignment statement" << endl;
 				semantic_error = true;
+				ss.str(std::string());
 			}
 			$$.code += ": " + $$.after;
 	   	}
@@ -722,8 +752,10 @@ statement: var ASSIGN expression {
 			$$.code += "[]= " + sym_table.at($2.place) + ", " + $2.index + ", " + to_string($4) + "\n";
 		}
 		else {
-			std::cerr << "Error line " << @1 << ": Invalid assignment statement" << endl;
+			ss << @1;
+			std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Invalid assignment statement" << endl;
 			semantic_error = true;
+			ss.str(std::string());
 		}
 		// code for bool expression
 		$$.code += $6.code + "\n";
@@ -749,8 +781,10 @@ statement: var ASSIGN expression {
 			$$.code += "[]= " + sym_table.at($8.place) + ", " + $8.index + ", " + sym_table.at($10.place) + "\n";
 		}
 		else {
-			std::cerr << "Error line " << @1 << ": Invalid assignment statement" << endl;
+			ss << @1;
+			std::cerr << "Error line " << ss.str().substr(0, ss.str().find(".", 0)) << ": Invalid assignment statement" << endl;
 			semantic_error = true;
+			ss.str(std::string());
 		}
 		$$.code += ": " + $$.after;
 		$$.has_loop = true;
@@ -810,6 +844,9 @@ statement: var ASSIGN expression {
 		$$.code += ":= _patch_label_\n";
 		$$.code += ": " + $$.after;
 		$$.has_continue = true;
+		ss << @1;
+		$$.loc = ss.str().substr(0, ss.str().find(".", 0));
+		ss.str(std::string());
 	   }
 	   | RETURN expression {
 		$$.begin = newLabel();
